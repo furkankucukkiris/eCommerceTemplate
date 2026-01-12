@@ -1,48 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Copy, Edit, Trash, Archive, ArchiveRestore, Star, StarOff } from "lucide-react"; // İkonları ekledik
 import { toast } from "sonner"; 
 import { useParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { AlertModal } from "@/components/modals/alert-modal";
-import axios from "axios";
 
-// ProductColumn tipini import etmek yerine basitçe burada tanımlayabiliriz 
-// veya 'any' kullanabiliriz hata almamak için.
+import { Button } from "@/components/ui/button";
+import { AlertModal } from "@/components/modals/alert-modal";
+import { deleteProduct, toggleArchive, toggleFeatured } from "@/actions/products";
+
 interface CellActionProps {
   data: {
     id: string;
-    // İhtiyaç duyulan diğer alanlar eklenebilir ama şu an id yeterli
+    isFeatured: boolean;
+    isArchived: boolean;
   }
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const router = useRouter();
   const params = useParams();
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const onConfirm = async () => {
-    try {
-      setLoading(true);
-      // API isteği
-      await axios.delete(`/api/${params.storeId}/products/${data.id}`);
-      toast.success("Ürün silindi.");
-      router.refresh();
-    } catch (error) {
-      toast.error("Bir hata oluştu.");
-    } finally {
-      setLoading(false);
-      setOpen(false);
-    }
+  const onDelete = async () => {
+    startTransition(() => {
+      deleteProduct(params.storeId as string, data.id)
+        .then(() => {
+          toast.success("Ürün silindi.");
+          router.refresh();
+        })
+        .catch(() => toast.error("Bir hata oluştu."))
+        .finally(() => setOpen(false));
+    });
   };
 
   const onCopy = (id: string) => {
@@ -50,34 +40,79 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     toast.success("ID kopyalandı.");
   };
 
+  // Arşivle / Geri Yükle Fonksiyonu
+  const onToggleArchive = () => {
+    startTransition(() => {
+      const newValue = !data.isArchived;
+      toggleArchive(params.storeId as string, data.id, newValue)
+        .then(() => {
+          toast.success(newValue ? "Ürün arşivlendi." : "Ürün arşivden çıkarıldı.");
+          router.refresh();
+        })
+        .catch(() => toast.error("Hata oluştu."));
+    });
+  };
+
+  // Öne Çıkar / Kaldır Fonksiyonu
+  const onToggleFeatured = () => {
+    startTransition(() => {
+      const newValue = !data.isFeatured;
+      toggleFeatured(params.storeId as string, data.id, newValue)
+        .then(() => {
+          toast.success(newValue ? "Ürün öne çıkarıldı." : "Öne çıkanlardan kaldırıldı.");
+          router.refresh();
+        })
+        .catch(() => toast.error("Hata oluştu."));
+    });
+  };
+
   return (
-    <>
+    <div className="flex items-center gap-x-2">
       <AlertModal 
         isOpen={open} 
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
-        loading={loading}
+        onConfirm={onDelete}
+        loading={isPending}
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Menüyü aç</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => onCopy(data.id)}>
-            <Copy className="mr-2 h-4 w-4" /> ID Kopyala
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push(`/${params.storeId}/products/${data.id}`)}>
-            <Edit className="mr-2 h-4 w-4" /> Düzenle
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            <Trash className="mr-2 h-4 w-4" /> Sil
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+      
+      {/* 1. ID Kopyala */}
+      <Button onClick={() => onCopy(data.id)} variant="outline" size="icon" className="h-8 w-8" title="ID Kopyala">
+        <Copy className="h-4 w-4" />
+      </Button>
+
+      {/* 2. Düzenle */}
+      <Button onClick={() => router.push(`/${params.storeId}/products/${data.id}`)} variant="outline" size="icon" className="h-8 w-8" title="Düzenle">
+        <Edit className="h-4 w-4" />
+      </Button>
+
+      {/* 3. Öne Çıkar (Aktifse dolu yıldız, değilse boş) */}
+      <Button 
+        onClick={onToggleFeatured} 
+        variant={data.isFeatured ? "default" : "outline"} // Öne çıkanlar vurgulu olsun
+        size="icon" 
+        className="h-8 w-8"
+        disabled={isPending}
+        title={data.isFeatured ? "Öne Çıkanlardan Kaldır" : "Öne Çıkar"}
+      >
+        {data.isFeatured ? <Star className="h-4 w-4 fill-current" /> : <Star className="h-4 w-4" />}
+      </Button>
+
+      {/* 4. Arşivle (Arşivliyse Geri Yükle ikonu) */}
+      <Button 
+        onClick={onToggleArchive} 
+        variant="outline"
+        size="icon" 
+        className="h-8 w-8"
+        disabled={isPending}
+        title={data.isArchived ? "Arşivden Çıkar" : "Arşivle"}
+      >
+        {data.isArchived ? <ArchiveRestore className="h-4 w-4 text-green-600" /> : <Archive className="h-4 w-4 text-orange-600" />}
+      </Button>
+
+      {/* 5. Sil */}
+      <Button onClick={() => setOpen(true)} variant="destructive" size="icon" className="h-8 w-8" title="Sil">
+        <Trash className="h-4 w-4" />
+      </Button>
+    </div>
   );
 };

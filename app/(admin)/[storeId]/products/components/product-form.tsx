@@ -2,9 +2,10 @@
 
 import { z } from "zod";
 import { useState, useTransition } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
+import { Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,63 +19,114 @@ import {
 import { Input } from "@/components/ui/input";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
-import ImageUpload from "@/components/ui/image-upload"; // YENİ IMPORT
-import { createProduct } from "@/actions/products";
+import ImageUpload from "@/components/ui/image-upload";
+import { AlertModal } from "@/components/modals/alert-modal";
+import { createProduct, updateProduct, deleteProduct } from "@/actions/products";
+// YENİ: Select bileşenlerini import ediyoruz
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
-// 1. Şemaya 'images' dizisini ekliyoruz
+// Şemayı güncelledik: categoryId zorunlu
 const formSchema = z.object({
   name: z.string().min(2, { message: "Ürün adı en az 2 karakter olmalıdır." }),
   price: z.coerce.number().min(1, { message: "Fiyat en az 1 olmalıdır." }),
-  images: z.object({ url: z.string() }).array(), // Resimler obje dizisi olacak
+  categoryId: z.string().min(1, { message: "Bir kategori seçmelisiniz." }), // YENİ
+  images: z.object({ url: z.string() }).array(),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
 
-export const ProductForm = () => {
+// Props tanımına categories dizisini ekledik
+interface ProductFormProps {
+  initialData: any | null;
+  categories: { id: string; name: string }[]; // YENİ
+}
+
+export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories }) => {
   const params = useParams();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+
+  const title = initialData ? "Ürünü Düzenle" : "Ürün Ekle";
+  const description = initialData ? "Ürün detaylarını düzenleyin." : "Yeni bir ürün ekleyin.";
+  const action = initialData ? "Güncelle" : "Oluştur";
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: initialData ? {
+      ...initialData,
+      price: parseFloat(String(initialData.price)),
+    } : {
       name: "",
       price: 0,
-      images: [], // Varsayılan boş dizi
+      categoryId: "", // Varsayılan boş
+      images: [],
     },
   });
 
-  const onSubmit: SubmitHandler<ProductFormValues> = (values) => {
+  const onSubmit = (values: ProductFormValues) => {
     startTransition(() => {
-      createProduct({ 
-        ...values, 
-        storeId: params.storeId as string 
-      })
-      .then((data) => {
-        if (data.error) {
-          console.error(data.error);
-        } else {
-          router.push(`/${params.storeId}/products`);
-          router.refresh();
-        }
-      });
+      if (initialData) {
+        // Güncelleme
+        updateProduct(params.storeId as string, params.productId as string, values)
+          .then(() => {
+            router.push(`/${params.storeId}/products`);
+            router.refresh();
+          });
+      } else {
+        // Oluşturma
+        createProduct({ ...values, storeId: params.storeId as string })
+          .then(() => {
+            router.push(`/${params.storeId}/products`);
+            router.refresh();
+          });
+      }
+    });
+  };
+
+  const onDelete = async () => {
+    startTransition(() => {
+        deleteProduct(params.storeId as string, params.productId as string)
+            .then(() => {
+                router.push(`/${params.storeId}/products`);
+                router.refresh();
+            })
+            .catch(() => console.error("Silme hatası"));
     });
   };
 
   return (
     <>
+      <AlertModal 
+        isOpen={open} 
+        onClose={() => setOpen(false)}
+        onConfirm={onDelete}
+        loading={isPending}
+      />
       <div className="flex items-center justify-between">
-        <Heading 
-            title="Ürün Ekle" 
-            description="Mağazanıza yeni bir ürün ekleyin." 
-        />
+        <Heading title={title} description={description} />
+        {initialData && (
+          <Button
+            disabled={isPending}
+            variant="destructive"
+            size="sm"
+            onClick={() => setOpen(true)}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       <Separator />
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full mt-4">
           
-          {/* YENİ: GÖRSEL YÜKLEME ALANI */}
           <FormField
             control={form.control}
             name="images"
@@ -126,9 +178,40 @@ export const ProductForm = () => {
                 </FormItem>
               )}
             />
+            
+            {/* YENİ: KATEGORİ SEÇİM ALANI */}
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kategori</FormLabel>
+                  <Select 
+                    disabled={isPending} 
+                    onValueChange={field.onChange} 
+                    value={field.value} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Kategori seçin" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
           <Button disabled={isPending} className="ml-auto" type="submit">
-            {isPending ? "Kaydediliyor..." : "Oluştur"}
+            {action}
           </Button>
         </form>
       </Form>

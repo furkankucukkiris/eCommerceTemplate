@@ -1,35 +1,54 @@
-import { format } from "date-fns"; // Tarih formatlama için (npm i date-fns)
+import { format } from "date-fns";
 import { db } from "@/lib/db";
-import { ProductColumn } from "./components/columns"; // Az önce oluşturduk
-import { ProductClient } from "./components/client"; // Birazdan oluşturacağız
+import { ProductClient } from "./components/client";
+import { ProductColumn } from "./components/columns";
 
-export default async function ProductsPage({
-  params
-}: {
-  params: { storeId: string }
-}) {
-  // 1. Veriyi Prisma ile çek
+// Fiyatı TL formatına çevirmek için yardımcı
+const formatter = new Intl.NumberFormat("tr-TR", {
+  style: "currency",
+  currency: "TRY",
+});
+
+interface ProductsPageProps {
+  params: Promise<{
+    storeId: string;
+  }>;
+}
+
+export default async function ProductsPage(props: ProductsPageProps) {
+  // Next.js 15+ için params'ı await ile karşılıyoruz
+  const params = await props.params;
+
+  // Ürünleri veritabanından çekiyoruz
   const products = await db.product.findMany({
     where: {
       storeId: params.storeId
+    },
+    include: {
+      category: true, // Kategori ismini göstermek için
+      images: true,   // YENİ: Resimleri çekiyoruz (thumbnail için şart)
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
 
-  // 2. Veriyi tablo formatına (ProductColumn) çevir
+  // Veriyi tablo yapısına (ProductColumn) uygun hale getiriyoruz
   const formattedProducts: ProductColumn[] = products.map((item) => ({
     id: item.id,
     name: item.name,
-    price: new Intl.NumberFormat("tr-TR", {
-      style: "currency",
-      currency: "TRY",
-    }).format(item.price.toNumber()), // Prisma Decimal tipini number'a çeviriyoruz
-    createdAt: format(item.createdAt, "dd MMMM yyyy"), // Örn: 10 Ocak 2024
+    isFeatured: item.isFeatured,
+    isArchived: item.isArchived,
+    // Fiyatı sayıdan (Decimal) formatlı yazıya (String) çeviriyoruz
+    price: formatter.format(item.price.toNumber()), 
+    // Kategori varsa adını, yoksa boş string
+    category: item.category?.name || "",
+    // Tarih formatı
+    createdAt: format(item.createdAt, "dd MMMM yyyy"),
+    // YENİ: İlk görseli alıyoruz, yoksa boş string dönüyoruz
+    image: item.images?.[0]?.url || "",
   }));
 
-  // 3. Client Component'e gönder
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">

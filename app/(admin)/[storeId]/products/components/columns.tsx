@@ -1,17 +1,35 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { CellAction } from "./cell-action" // Yanındaki dosyayı çağırıyoruz
+import Image from "next/image" 
+import { CellAction } from "./cell-action"
 
-// Tabloda göstereceğimiz verinin tipi
 export type ProductColumn = {
   id: string
   name: string
   price: string
+  category: string
+  isFeatured: boolean // CellAction için gerekli, ama tabloda göstermeyeceğiz
+  isArchived: boolean // CellAction için gerekli
   createdAt: string
+  image: string
 }
 
 export const columns: ColumnDef<ProductColumn>[] = [
+  {
+    accessorKey: "image",
+    header: "Görsel",
+    cell: ({ row }) => {
+      if (!row.original.image) {
+        return <div className="w-10 h-10 bg-gray-100 rounded-md" />
+      }
+      return (
+        <div className="relative w-10 h-10 min-w-[40px] rounded-md overflow-hidden border">
+          <Image src={row.original.image} alt="Product" fill className="object-cover" />
+        </div>
+      )
+    }
+  },
   {
     accessorKey: "name",
     header: "İsim",
@@ -21,14 +39,15 @@ export const columns: ColumnDef<ProductColumn>[] = [
     header: "Fiyat",
   },
   {
+    accessorKey: "category",
+    header: "Kategori",
+  },
+  {
     accessorKey: "createdAt",
-    header: "Oluşturulma Tarihi",
+    header: "Tarih",
   },
   {
     id: "actions",
-    // ESKİ HALİ: Uzun uzun DropdownMenu kodları vardı.
-    // YENİ HALİ: Sadece CellAction bileşenini çağırıyoruz.
-    // Çünkü tüm buton ve silme mantığı o dosyanın içinde.
     cell: ({ row }) => <CellAction data={row.original} />
   },
 ]

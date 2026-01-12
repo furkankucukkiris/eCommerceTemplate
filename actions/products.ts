@@ -12,7 +12,6 @@ const productSchema = z.object({
     message: "Fiyat 1'den büyük olmalıdır.",
   }),
   storeId: z.string(),
-  // YENİ: Resim dizisi şeması (obje listesi olarak bekliyoruz)
   images: z.object({ url: z.string() }).array(), 
 });
 
@@ -23,7 +22,6 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
     return { error: "Geçersiz alanlar!" };
   }
 
-  // images'i de veriden çekiyoruz
   const { name, price, storeId, images } = validatedFields.data;
 
   try {
@@ -34,7 +32,6 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
         storeId,
         isArchived: false,
         isFeatured: false,
-        // YENİ: İlişkili resimleri kaydetme mantığı
         images: {
           createMany: {
             data: [
@@ -45,6 +42,7 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
       },
     });
 
+    // Listeyi yenile
     revalidatePath(`/${storeId}/products`);
     
     return { success: "Ürün başarıyla oluşturuldu!" };
@@ -54,7 +52,6 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
     return { error: "Bir şeyler ters gitti." };
   }
 }
-// ... (Mevcut createProduct fonksiyonunuzun altına ekleyin)
 
 // Ürün Güncelleme
 export const updateProduct = async (
@@ -63,14 +60,14 @@ export const updateProduct = async (
   data: {
     name: string;
     price: number;
-    categoryId?: string; // Opsiyonel yapmıştık
+    categoryId?: string;
     images: { url: string }[];
     isFeatured?: boolean;
     isArchived?: boolean;
   }
 ) => {
   try {
-    // Önce mevcut resimleri sil (Temiz bir güncelleme için)
+    // 1. Eski resimleri sil
     await db.product.update({
       where: { id: productId },
       data: {
@@ -80,12 +77,12 @@ export const updateProduct = async (
       },
     });
 
-    // Ürünü ve yeni resimleri güncelle
-    const product = await db.product.update({
+    // 2. Ürünü güncelle ve yeni resimleri ekle
+    await db.product.update({
       where: { id: productId },
       data: {
         name: data.name,
-        price: data.price,
+        price: data.price, // Prisma Decimal'a otomatik çevirir
         categoryId: data.categoryId,
         isFeatured: data.isFeatured,
         isArchived: data.isArchived,
@@ -96,8 +93,12 @@ export const updateProduct = async (
         },
       },
     });
+    
+    // ÖNEMLİ: Listeleme sayfasının cache'ini temizle
+    revalidatePath(`/${storeId}/products`);
 
-    return product;
+    return { success: true };
+
   } catch (error) {
     console.log("[PRODUCT_UPDATE]", error);
     throw new Error("Ürün güncellenemedi.");
@@ -107,16 +108,53 @@ export const updateProduct = async (
 // Ürün Silme
 export const deleteProduct = async (storeId: string, productId: string) => {
   try {
-    const product = await db.product.delete({
+    await db.product.delete({
       where: {
         id: productId,
-        storeId: storeId, // Güvenlik kontrolü: Sadece o mağazanın ürünü silinebilir
+        storeId: storeId,
       },
     });
 
-    return product;
+    // ÖNEMLİ: Listeleme sayfasının cache'ini temizle
+    revalidatePath(`/${storeId}/products`);
+
+    return { success: true };
+
   } catch (error) {
     console.log("[PRODUCT_DELETE]", error);
     throw new Error("Ürün silinemedi.");
+  }
+};
+
+// Hızlı Arşivleme / Arşivden Çıkarma
+export const toggleArchive = async (storeId: string, productId: string, isArchived: boolean) => {
+  try {
+    await db.product.update({
+      where: { id: productId },
+      data: { isArchived }
+    });
+    
+    revalidatePath(`/${storeId}/products`);
+    revalidatePath(`/${storeId}/products/archived`); // Arşiv sayfasını da yenile
+    return { success: true };
+  } catch (error) {
+    console.error("Arşivleme hatası:", error);
+    throw new Error("İşlem başarısız.");
+  }
+};
+
+// Hızlı Öne Çıkarma
+export const toggleFeatured = async (storeId: string, productId: string, isFeatured: boolean) => {
+  try {
+    await db.product.update({
+      where: { id: productId },
+      data: { isFeatured }
+    });
+    
+    revalidatePath(`/${storeId}/products`);
+    return { success: true };
+  } catch (error) {
+    console.error("Öne çıkarma hatası:", error);
+    throw new Error("İşlem başarısız.");
   }
 };
