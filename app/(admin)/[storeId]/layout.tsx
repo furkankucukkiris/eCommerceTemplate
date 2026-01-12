@@ -1,4 +1,4 @@
-import { MainNav } from "./products/components/main-nav"; // Az önce düzenlediğimiz dosya
+import { MainNav } from "@/components/ui/main-nav"; // Az önce düzenlediğimiz dosya
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 
