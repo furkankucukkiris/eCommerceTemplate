@@ -1,101 +1,103 @@
-"use client"; // 1. KRİTİK NOKTA: Bu satır en üstte olmalı
+"use client"
 
-import { useState } from "react";
-import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
-import { toast } from "react-hot-toast"; // veya kullandığın toast kütüphanesi
-import { useParams, useRouter } from "next/navigation"; // 2. KRİTİK NOKTA: next/navigation
-import axios from "axios";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getPaginationRowModel,
+} from "@tanstack/react-table"
 
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { AlertModal } from "@/components/modals/alert-modal"; // Eğer modalın varsa
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 
-interface CellActionProps {
-  data: ProductColumn; // Buradaki tip senin columns.tsx'teki tipinle aynı olmalı
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
 }
 
-export const CellAction: React.FC<CellActionProps> = ({
-  data
-}) => {
-  const router = useRouter();
-  const params = useParams(); // URL parametrelerini (storeId vb.) almak için
-
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  // Kopyalama Fonksiyonu
-  const onCopy = (id: string) => {
-    navigator.clipboard.writeText(id);
-    toast.success("Ürün ID'si kopyalandı.");
-  };
-
-  // Düzenleme Fonksiyonu (Yönlendirme)
-  const onEdit = () => {
-    // Buradaki URL yapısının senin dosya yolunla eşleştiğinden emin ol
-    // Örn: /admin/products/[productId] veya /[storeId]/products/[productId]
-    router.push(`/${params.storeId}/products/${data.id}`);
-  };
-
-  // Silme Fonksiyonu (API İsteği)
-  const onDelete = async () => {
-    try {
-      setLoading(true);
-      // API yolunun backend'deki route.ts ile aynı olduğundan emin ol
-      await axios.delete(`/api/${params.storeId}/products/${data.id}`);
-      
-      router.refresh(); // Sayfayı yenileyerek listeyi günceller
-      toast.success("Ürün silindi.");
-    } catch (error) {
-      toast.error("Bir şeyler ters gitti.");
-    } finally {
-      setLoading(false);
-      setOpen(false);
-    }
-  };
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+}: DataTableProps<TData, TValue>) {
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
 
   return (
-    <>
-      {/* Silme işlemi için onay modalı */}
-      <AlertModal 
-        isOpen={open} 
-        onClose={() => setOpen(false)}
-        onConfirm={onDelete}
-        loading={loading}
-      />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Menüyü aç</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-          
-          <DropdownMenuItem onClick={() => onCopy(data.id)}>
-            <Copy className="mr-2 h-4 w-4" />
-            ID Kopyala
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={onEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Düzenle
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            <Trash className="mr-2 h-4 w-4" />
-            Sil
-          </DropdownMenuItem>
-          
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
-  );
-};
+    <div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Sonuç bulunamadı.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          Önceki
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Sonraki
+        </Button>
+      </div>
+    </div>
+  )
+}
