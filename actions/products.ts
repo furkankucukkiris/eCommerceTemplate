@@ -1,10 +1,9 @@
 "use server";
 
-import { db } from "@/lib/db"; // Prisma client instance'ınızın olduğu yer
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-// Zod şemamız (Validation için)
 const productSchema = z.object({
   name: z.string().min(2, {
     message: "Ürün adı en az 2 karakter olmalıdır.",
@@ -12,22 +11,22 @@ const productSchema = z.object({
   price: z.coerce.number().min(1, {
     message: "Fiyat 1'den büyük olmalıdır.",
   }),
-  storeId: z.string(), // Hangi mağazaya ait olduğu
-  // Buraya description, categoryId, images vb. eklenebilir.
+  storeId: z.string(),
+  // YENİ: Resim dizisi şeması (obje listesi olarak bekliyoruz)
+  images: z.object({ url: z.string() }).array(), 
 });
 
 export async function createProduct(formData: z.infer<typeof productSchema>) {
-  // 1. Veriyi doğrula
   const validatedFields = productSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Geçersiz alanlar!" };
   }
 
-  const { name, price, storeId } = validatedFields.data;
+  // images'i de veriden çekiyoruz
+  const { name, price, storeId, images } = validatedFields.data;
 
   try {
-    // 2. Veritabanına kaydet
     await db.product.create({
       data: {
         name,
@@ -35,11 +34,18 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
         storeId,
         isArchived: false,
         isFeatured: false,
+        // YENİ: İlişkili resimleri kaydetme mantığı
+        images: {
+          createMany: {
+            data: [
+              ...images.map((image: { url: string }) => image),
+            ],
+          },
+        },
       },
     });
 
-    // 3. Cache'i temizle (Sayfayı yenilemeden veriyi güncellemek için)
-    revalidatePath(`/admin/${storeId}/products`);
+    revalidatePath(`/${storeId}/products`);
     
     return { success: "Ürün başarıyla oluşturuldu!" };
 

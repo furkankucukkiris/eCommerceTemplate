@@ -18,11 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
+import ImageUpload from "@/components/ui/image-upload"; // YENİ IMPORT
 import { createProduct } from "@/actions/products";
 
+// 1. Şemaya 'images' dizisini ekliyoruz
 const formSchema = z.object({
   name: z.string().min(2, { message: "Ürün adı en az 2 karakter olmalıdır." }),
   price: z.coerce.number().min(1, { message: "Fiyat en az 1 olmalıdır." }),
+  images: z.object({ url: z.string() }).array(), // Resimler obje dizisi olacak
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -33,10 +36,11 @@ export const ProductForm = () => {
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(formSchema) as any, 
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: "",
       price: 0,
+      images: [], // Varsayılan boş dizi
     },
   });
 
@@ -69,6 +73,27 @@ export const ProductForm = () => {
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full mt-4">
+          
+          {/* YENİ: GÖRSEL YÜKLEME ALANI */}
+          <FormField
+            control={form.control}
+            name="images"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ürün Görselleri</FormLabel>
+                <FormControl>
+                  <ImageUpload 
+                    value={field.value.map((image) => image.url)} 
+                    disabled={isPending}
+                    onChange={(url) => field.onChange([...field.value, { url }])}
+                    onRemove={(url) => field.onChange([...field.value.filter((current) => current.url !== url)])}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className="grid grid-cols-3 gap-8">
             <FormField
               control={form.control}
@@ -95,10 +120,6 @@ export const ProductForm = () => {
                       disabled={isPending} 
                       placeholder="99.90" 
                       {...field}
-                      /* ÇÖZÜM 2 (Opsiyonel ama önerilir):
-                         field'dan gelen onChange'i özelleştiriyoruz.
-                         Bu sayede input değeri değiştiğinde Zod'a gitmeden önce
-                         değerin number olduğundan emin olabiliriz. */
                     />
                   </FormControl>
                   <FormMessage />
