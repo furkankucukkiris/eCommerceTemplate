@@ -54,3 +54,69 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
     return { error: "Bir şeyler ters gitti." };
   }
 }
+// ... (Mevcut createProduct fonksiyonunuzun altına ekleyin)
+
+// Ürün Güncelleme
+export const updateProduct = async (
+  storeId: string,
+  productId: string,
+  data: {
+    name: string;
+    price: number;
+    categoryId?: string; // Opsiyonel yapmıştık
+    images: { url: string }[];
+    isFeatured?: boolean;
+    isArchived?: boolean;
+  }
+) => {
+  try {
+    // Önce mevcut resimleri sil (Temiz bir güncelleme için)
+    await db.product.update({
+      where: { id: productId },
+      data: {
+        images: {
+          deleteMany: {},
+        },
+      },
+    });
+
+    // Ürünü ve yeni resimleri güncelle
+    const product = await db.product.update({
+      where: { id: productId },
+      data: {
+        name: data.name,
+        price: data.price,
+        categoryId: data.categoryId,
+        isFeatured: data.isFeatured,
+        isArchived: data.isArchived,
+        images: {
+          createMany: {
+            data: [...data.images.map((image: { url: string }) => image)],
+          },
+        },
+      },
+    });
+
+    return product;
+  } catch (error) {
+    console.log("[PRODUCT_UPDATE]", error);
+    throw new Error("Ürün güncellenemedi.");
+  }
+};
+
+// Ürün Silme
+export const deleteProduct = async (storeId: string, productId: string) => {
+  try {
+    const product = await db.product.delete({
+      where: {
+        id: productId,
+        storeId: storeId, // Güvenlik kontrolü: Sadece o mağazanın ürünü silinebilir
+      },
+    });
+
+    return product;
+  } catch (error) {
+    console.log("[PRODUCT_DELETE]", error);
+    throw new Error("Ürün silinemedi.");
+  }
+};

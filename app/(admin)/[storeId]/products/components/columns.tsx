@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { CellAction } from "./cell-action"
 
 // Tabloda göstereceğimiz verinin tipi
 export type ProductColumn = {

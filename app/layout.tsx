@@ -1,23 +1,30 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css"; // <--- BU SATIR ÇOK ÖNEMLİ! CSS BURADAN YÜKLENİR.
+import { Toaster } from "sonner"; // Toast bildirimleri için
+
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "E-Ticaret Şablonu",
-  description: "Next.js E-Ticaret Başlangıç Kiti",
+  title: "Admin Panel",
+  description: "E-Ticaret Yönetim Paneli",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="tr">
+      <body className={inter.className}>
+        {/* Ana İçerik */}
+        {children}
+        
+        {/* Toast Bildirim Bileşeni (En altta olmalı) */}
+        <Toaster richColors />
+      </body>
     </html>
   );
 }
