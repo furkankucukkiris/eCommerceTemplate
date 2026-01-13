@@ -3,6 +3,7 @@ import { Search, ShoppingBag, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import NavbarActions from "@/components/navbar-actions";
 import Footer from "@/components/footer"; // YENİ: Footer'ı import ettik
 
 export default function ShopLayout({
@@ -61,10 +62,10 @@ export default function ShopLayout({
               <Button variant="ghost" size="icon">
                 <User className="h-5 w-5" />
               </Button>
-              <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                <span className="hidden md:inline">Sepet</span> (0)
-              </Button>
+              
+              {/* ESKİ BUTON YERİNE YENİSİ GELDİ */}
+              <NavbarActions />
+              
             </nav>
           </div>
         </div>

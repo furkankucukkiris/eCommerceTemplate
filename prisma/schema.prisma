@@ -16,6 +16,7 @@ model Store {
   products        Product[]
   orders          Order[]
   categories      Category[]
+  attributes      Attribute[]
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
@@ -30,6 +31,7 @@ model Product {
   price       Decimal
   isFeatured  Boolean     @default(false)
   isArchived  Boolean     @default(false)
+  attributes  AttributeValue[]
   images      Image[]
   orderItems  OrderItem[]
   createdAt   DateTime    @default(now())
@@ -37,6 +39,34 @@ model Product {
 
   @@index([storeId])
   @@index([categoryId])
+}
+
+// YENİ: Varyasyonun Tipi (Örn: "Beden", "Renk", "Hafıza")
+model Attribute {
+  id          String    @id @default(uuid())
+  storeId     String    // Hangi mağazaya ait olduğu
+  store       Store     @relation(fields: [storeId], references: [id])
+  name        String    // Ekranda görünecek isim (Örn: "Beden", "Renk")
+  valueType   String    // Frontend için ipucu: "TEXT" (Normal buton) veya "COLOR" (Renk kodu)
+  values      AttributeValue[] // Bu niteliğe ait değerler
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+// YENİ: Varyasyonun Değeri (Örn: "Small", "#FF0000", "128 GB")
+model AttributeValue {
+  id          String    @id @default(uuid())
+  attributeId String
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  name        String    // Görünen isim (Örn: "Kırmızı", "XL")
+  value       String    // Değer (Renkse HEX kodu "#fff", değilse isimle aynı olabilir)
+  products    Product[] // Hangi ürünlerde bu seçenek var
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([attributeId])
 }
 
 model Category {
