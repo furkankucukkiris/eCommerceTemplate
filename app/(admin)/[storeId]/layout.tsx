@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Menu } from "lucide-react";
 
 import { db } from "@/lib/db";
-import { MainSidebar } from "@/components/ui/main-sidebar"; 
+import { MainSidebar } from "@/components/main-sidebar"; 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -25,7 +25,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen w-full flex-col md:flex-row">
       
       {/* --- MASAÜSTÜ SIDEBAR (KOYU RENK) --- */}
-      <aside className="hidden w-64 border-r border-slate-800 bg-slate-950 text-white md:block min-h-screen sticky top-0 h-screen overflow-y-auto">
+      <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 text-white md:block min-h-screen sticky top-0 h-screen overflow-y-auto">
         <div className="flex h-16 items-center border-b border-slate-800 px-6">
            <h2 className="font-bold text-lg tracking-tight text-white">{store.name}</h2>
         </div>

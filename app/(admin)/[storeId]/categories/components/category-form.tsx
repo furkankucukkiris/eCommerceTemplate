@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Heading } from "@/components/ui/heading";
+import { Heading } from "@/components/heading";
 import { Separator } from "@/components/ui/separator";
 import { AlertModal } from "@/components/modals/alert-modal";
 // DİKKAT: Action'ları yeni oluşturduğumuz dosyadan çekiyoruz

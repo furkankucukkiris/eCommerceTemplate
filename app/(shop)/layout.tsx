@@ -3,6 +3,8 @@ import { Search, ShoppingBag, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import Footer from "@/components/footer"; // YENİ: Footer'ı import ettik
+
 export default function ShopLayout({
   children,
 }: {
@@ -73,14 +75,8 @@ export default function ShopLayout({
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-6 md:py-0">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4">
-          <p className="text-sm text-gray-500 text-center md:text-left">
-            © 2024 E-Ticaret Şablonu. Tüm hakları saklıdır.
-          </p>
-        </div>
-      </footer>
+      {/* YENİ: Footer Bileşeni */}
+      <Footer />
     </div>
   );
 }

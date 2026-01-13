@@ -17,9 +17,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Heading } from "@/components/ui/heading";
+import { Heading } from "@/components/heading";
 import { Separator } from "@/components/ui/separator";
-import ImageUpload from "@/components/ui/image-upload";
+import ImageUpload from "@/components/image-upload";
 import { AlertModal } from "@/components/modals/alert-modal";
 import { createProduct, updateProduct, deleteProduct } from "@/actions/products";
 // YENİ: Select bileşenlerini import ediyoruz

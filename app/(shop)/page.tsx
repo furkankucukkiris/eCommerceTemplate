@@ -1,73 +1,51 @@
-import { db } from "@/lib/db"; // <-- 1. db'yi global dosyamızdan çektik
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { db } from "@/lib/db";
+import { ProductList } from "@/components/product-list";
+import { Container } from "@/components/ui/container"; 
 
-// Verileri çeken fonksiyon
+// Ürünleri Çeken Fonksiyon
 async function getProducts() {
   const products = await db.product.findMany({
-    where: { isArchived: false },
+    where: { isFeatured: true, isArchived: false },
     include: { 
       category: true,
       images: true
     },
     orderBy: { createdAt: 'desc' }
   });
-  return products;
+
+  // DÜZELTME BURADA:
+  // Prisma'dan gelen veriyi map'leyerek Decimal olan price'ı number'a çeviriyoruz.
+  return products.map((item) => ({
+    ...item,
+    price: item.price.toNumber(), // Decimal -> Number dönüşümü
+    // Eğer tarih hatası da alırsan bunları da açabilirsin:
+    // createdAt: item.createdAt.toISOString(),
+    // updatedAt: item.updatedAt.toISOString()
+  }));
 }
 
 export default async function StoreHome() {
   const products = await getProducts();
 
   return (
-    <div className="container mx-auto px-4 py-10">
-
-      {/* Hero Bölümü */}
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-4">
-          Geleceğin Teknolojisi, Bugünün Tarzı.
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          En yeni koleksiyonlarımızı keşfedin.
-        </p>
+    <Container>
+      <div className="space-y-10 pb-10 pt-10">
+        
+        {/* Mağazanın Kendi Karşılama Alanı */}
+        <div className="text-center space-y-4 py-8 md:py-12 bg-slate-50 rounded-xl mx-4 sm:mx-0">
+           <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+             Koleksiyonu Keşfet
+           </h1>
+           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+             En yeni ürünlerimiz, en uygun fiyatlarla şimdi stoklarda.
+           </p>
+        </div>
+        
+        {/* Ürün Listesi */}
+        <div className="flex flex-col gap-y-8 px-4 sm:px-0">
+           <ProductList title="Öne Çıkan Ürünler" items={products} />
+        </div>
       </div>
-
-      {/* Ürün Listesi */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <div key={product.id} className="group border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white">
-
-            {/* Ürün Resmi */}
-            <div className="relative aspect-square bg-gray-100">
-              {/* Optional chaining (?.) ile güvenli erişim sağladık */}
-              {product.images?.[0]?.url ? (
-                <Image
-                  src={product.images[0].url}
-                  alt={product.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">Resim Yok</div>
-              )}
-            </div>
-
-            {/* Ürün Bilgileri */}
-            <div className="p-4">
-              <p className="text-xs text-gray-500 mb-1">
-                {product.category?.name || "Kategorisiz"}
-              </p>
-              <h3 className="font-semibold text-lg truncate">{product.name}</h3>
-              <div className="flex items-center justify-between mt-3">
-                <span className="font-bold text-lg">
-                  {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(product.price))}
-                </span>
-                <Button size="sm" variant="outline">İncele</Button>
-              </div>
-            </div>
-
-          </div>
-        ))}
-      </div>
-    </div>
+    </Container>
   );
 }
