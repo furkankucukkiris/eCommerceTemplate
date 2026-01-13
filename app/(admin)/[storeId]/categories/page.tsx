@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { tr } from "date-fns/locale"; // Tarihleri Türkçe göstermek için
+import { tr } from "date-fns/locale"; 
 
 import prismadb from "@/lib/prismadb";
 import { CategoryClient } from "./components/client";
@@ -8,19 +8,23 @@ import { CategoryColumn } from "./components/columns";
 const CategoriesPage = async ({
   params
 }: {
-  params: { storeId: string }
+  // 1. DÜZELTME: params artık bir Promise tipinde olmalı
+  params: Promise<{ storeId: string }>
 }) => {
-  // 1. Kategorileri veritabanından çek (En yeniden eskiye)
+  
+  // 2. DÜZELTME: params'ı kullanmadan önce await ile çözmeliyiz
+  const { storeId } = await params;
+
+  // 3. Veritabanı sorgusu (params.storeId yerine yukarıda çözdüğümüz storeId'yi kullanıyoruz)
   const categories = await prismadb.category.findMany({
     where: {
-      storeId: params.storeId
+      storeId: storeId 
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
 
-  // 2. Veriyi tablo formatına uygun hale getir
   const formattedCategories: CategoryColumn[] = categories.map((item) => ({
     id: item.id,
     name: item.name,

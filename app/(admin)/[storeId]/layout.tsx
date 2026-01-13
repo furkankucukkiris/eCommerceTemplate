@@ -11,10 +11,11 @@ export default async function DashboardLayout({
   params
 }: {
   children: React.ReactNode;
-  params: { storeId: string }
+  params: Promise<{ storeId: string }>
 }) {
+  const { storeId } = await params;
   const store = await db.store.findFirst({
-    where: { id: params.storeId }
+    where: { id: storeId }
   });
 
   if (!store) {
