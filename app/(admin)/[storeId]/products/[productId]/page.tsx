@@ -1,53 +1,43 @@
-import { db } from "@/lib/db";
+import prismadb from "@/lib/prismadb";
 import { ProductForm } from "../components/product-form";
 
-interface ProductPageProps {
-  params: Promise<{
-    productId: string;
-    storeId: string;
-  }>;
-}
+const ProductPage = async ({
+  params
+}: {
+  // 1. DÜZELTME: params artık bir Promise olarak tanımlanmalı
+  params: Promise<{ productId: string, storeId: string }>
+}) => {
+  
+  // 2. DÜZELTME: params'ı kullanmadan önce await etmeliyiz
+  const { productId, storeId } = await params;
 
-export default async function ProductPage(props: ProductPageProps) {
-  // Next.js 15+ için params'ı await ile çözümlüyoruz
-  const params = await props.params;
-
-  // 1. Ürünü çek (Eğer "new" değilse)
-  let product = null;
-
-  if (params.productId !== "new") {
-    product = await db.product.findUnique({
-      where: {
-        id: params.productId
-      },
-      include: {
-        images: true // Resimler form için gerekli
-      }
-    });
-  }
-
-  // 2. Kategorileri çek (YENİ KISIM)
-  const categories = await db.category.findMany({
+  // 1. Ürünü çek (Artık productId dolu geliyor)
+  const product = await prismadb.product.findUnique({
     where: {
-      storeId: params.storeId,
+      id: productId 
+    },
+    include: {
+      images: true 
     }
   });
 
-  // Decimal (Fiyat) hatasını önlemek için dönüşüm
-  const serializedProduct = product ? {
-    ...product,
-    price: parseFloat(String(product.price)),
-  } : null;
+  // 2. Kategorileri çek (storeId'yi de yukarıda await ettik)
+  const categories = await prismadb.category.findMany({
+    where: {
+      storeId: storeId,
+    },
+  });
 
-  return (
+  return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        {/* Kategorileri prop olarak forma gönderiyoruz */}
         <ProductForm 
-          initialData={serializedProduct} 
           categories={categories} 
+          initialData={product} 
         />
       </div>
     </div>
   );
 }
+
+export default ProductPage;

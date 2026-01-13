@@ -1,6 +1,5 @@
-// Gerekli importlar (yoluna göre düzenle)
-import prismadb from "@/lib/prismadb"; 
-import { ProductForm } from "../components/product-form"; 
+import prismadb from "@/lib/prismadb";
+import { ProductForm } from "../components/product-form";
 
 const ProductPage = async ({ 
   params 
@@ -17,7 +16,7 @@ const ProductPage = async ({
   return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        {/* 2. Çektiğimiz kategorileri ve boş initialData'yı props olarak geçiyoruz */}
+        {/* 2. Kategorileri form'a gönderiyoruz */}
         <ProductForm 
           categories={categories} 
           initialData={null} 

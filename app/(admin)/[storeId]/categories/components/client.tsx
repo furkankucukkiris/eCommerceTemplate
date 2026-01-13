@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
 import { DataTable } from "@/components/ui/data-table";
-import { ProductColumn, columns } from "./columns";
 
-interface ProductClientProps {
-  data: ProductColumn[];
+import { CategoryColumn, columns } from "./columns";
+
+interface CategoryClientProps {
+  data: CategoryColumn[];
 }
 
-export const ProductClient: React.FC<ProductClientProps> = ({
+export const CategoryClient: React.FC<CategoryClientProps> = ({
   data
 }) => {
   const router = useRouter();
@@ -23,16 +24,15 @@ export const ProductClient: React.FC<ProductClientProps> = ({
     <>
       <div className="flex items-center justify-between">
         <Heading
-          title={`Ürünler (${data.length})`}
-          description="Mağazanızdaki ürünleri yönetin."
+          title={`Kategoriler (${data.length})`}
+          description="Mağazanız için kategorileri yönetin"
         />
-        <Button onClick={() => router.push(`/${params.storeId}/products/new`)}>
+        <Button onClick={() => router.push(`/${params.storeId}/categories/new`)}>
           <Plus className="mr-2 h-4 w-4" />
           Yeni Ekle
         </Button>
       </div>
       <Separator />
-      {/* TEK DEĞİŞİKLİK BURADA: searchKey="name" eklendi */}
       <DataTable searchKey="name" columns={columns} data={data} />
     </>
   );

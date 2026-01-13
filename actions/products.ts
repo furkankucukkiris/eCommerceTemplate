@@ -11,6 +11,9 @@ const productSchema = z.object({
   price: z.coerce.number().min(1, {
     message: "Fiyat 1'den büyük olmalıdır.",
   }),
+  categoryId: z.string().min(1, {
+    message: "Lütfen bir kategori seçin.", 
+  }),
   storeId: z.string(),
   images: z.object({ url: z.string() }).array(), 
 });
@@ -22,13 +25,14 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
     return { error: "Geçersiz alanlar!" };
   }
 
-  const { name, price, storeId, images } = validatedFields.data;
+  const { name, price, categoryId, storeId, images } = validatedFields.data;
 
   try {
     await db.product.create({
       data: {
         name,
         price,
+        categoryId,
         storeId,
         isArchived: false,
         isFeatured: false,
@@ -67,7 +71,16 @@ export const updateProduct = async (
   }
 ) => {
   try {
-    // 1. Eski resimleri sil
+    const product = await db.product.findFirst({
+      where: {
+        id: productId,
+        storeId: storeId, // Mağaza ID eşleşmeli
+      }
+    });
+
+    if (!product) {
+      throw new Error("Ürün bulunamadı veya bu işlem için yetkiniz yok.");
+    }
     await db.product.update({
       where: { id: productId },
       data: {
@@ -108,14 +121,15 @@ export const updateProduct = async (
 // Ürün Silme
 export const deleteProduct = async (storeId: string, productId: string) => {
   try {
-    await db.product.delete({
+    // DÜZELTME: delete yerine deleteMany kullanıyoruz.
+    // deleteMany, 'storeId' gibi unique olmayan alanlarla filtrelemeye izin verir.
+    await db.product.deleteMany({
       where: {
         id: productId,
         storeId: storeId,
       },
     });
 
-    // ÖNEMLİ: Listeleme sayfasının cache'ini temizle
     revalidatePath(`/${storeId}/products`);
 
     return { success: true };

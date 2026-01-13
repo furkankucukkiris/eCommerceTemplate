@@ -9,8 +9,8 @@ export type ProductColumn = {
   name: string
   price: string
   category: string
-  isFeatured: boolean // CellAction için gerekli, ama tabloda göstermeyeceğiz
-  isArchived: boolean // CellAction için gerekli
+  isFeatured: boolean
+  isArchived: boolean 
   createdAt: string
   image: string
 }
@@ -48,6 +48,7 @@ export const columns: ColumnDef<ProductColumn>[] = [
   },
   {
     id: "actions",
+    header: "İşlemler", // BURAYA DA EKLEDİK
     cell: ({ row }) => <CellAction data={row.original} />
   },
 ]
