@@ -1,24 +1,27 @@
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server"; // Import yolu doğru (/server)
-
+import { auth } from "@clerk/nextjs/server"; 
 import prismadb from "@/lib/prismadb";
 import { SettingsClient } from "./components/settings-client";
 import { format } from "date-fns";
 
 interface SettingsPageProps {
-  params: Promise<{ // Next.js 15+ ile params da Promise olabilir, await gerekebilir
+  params: Promise<{
     storeId: string;
   }>
 }
 
 const SettingsPage = async (props: SettingsPageProps) => {
-  // 1. DÜZELTME: params'ı await ediyoruz (Next.js 15 kullanıyorsanız)
+  // Params ve Auth verilerini al
   const params = await props.params;
-
-  // 2. DÜZELTME: auth() fonksiyonuna 'await' ekliyoruz
   const { userId } = await auth();
 
+  // 1. KONTROL: Kullanıcı ID ve Store ID doğru geliyor mu?
+  console.log("--- DEBUG START ---");
+  console.log("User ID:", userId);
+  console.log("Store ID (URL):", params.storeId);
+
   if (!userId) {
+    console.log("Hata: Kullanıcı oturumu yok, sign-in'e yönlendiriliyor.");
     redirect('/sign-in');
   }
 
@@ -29,7 +32,11 @@ const SettingsPage = async (props: SettingsPageProps) => {
     }
   });
 
+  // 2. KONTROL: Mağaza bulundu mu?
+  console.log("Bulunan Mağaza:", store);
+
   if (!store) {
+    console.log("Hata: Mağaza bulunamadı veya yetkisiz erişim. Anasayfaya yönlendiriliyor.");
     redirect('/');
   }
 

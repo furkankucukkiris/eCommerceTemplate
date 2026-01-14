@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server"; // EKLENDİ
 import { Menu } from "lucide-react";
 
 import { db } from "@/lib/db";
@@ -13,9 +14,21 @@ export default async function DashboardLayout({
   children: React.ReactNode;
   params: Promise<{ storeId: string }>
 }) {
+  // 1. Auth Kontrolü (GÜVENLİK İÇİN ŞART)
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect('/sign-in');
+  }
+
   const { storeId } = await params;
+  
+  // 2. Mağazayı kullanıcının ID'sine göre ara
   const store = await db.store.findFirst({
-    where: { id: storeId }
+    where: { 
+      id: storeId,
+      userId: userId // Sadece kendi mağazasını görebilmeli
+    }
   });
 
   if (!store) {
@@ -25,14 +38,12 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen w-full flex-col md:flex-row">
       
-      {/* --- MASAÜSTÜ SIDEBAR (KOYU RENK) --- */}
+      {/* --- MASAÜSTÜ SIDEBAR --- */}
       <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 text-white md:block min-h-screen sticky top-0 h-screen overflow-y-auto">
         <div className="flex h-16 items-center border-b border-slate-800 px-6">
            <h2 className="font-bold text-lg tracking-tight text-white">{store.name}</h2>
         </div>
         <div className="p-4">
-           {/* Sidebar bileşenine renklerin koyu olduğunu belirtmek için bir prop geçebiliriz ama
-               şimdilik direkt bileşeni koyu moda uyumlu güncelleyeceğiz. */}
            <MainSidebar />
         </div>
       </aside>
@@ -46,7 +57,6 @@ export default async function DashboardLayout({
                     <Menu className="h-5 w-5" />
                  </Button>
                </SheetTrigger>
-               {/* Mobil Menü de Koyu Olsun */}
                <SheetContent side="left" className="w-64 p-0 bg-slate-950 text-white border-r-slate-800">
                   <div className="flex h-16 items-center border-b border-slate-800 px-6">
                      <h2 className="font-bold text-lg text-white">{store.name}</h2>

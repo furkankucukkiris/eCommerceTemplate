@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Toaster } from "sonner"; // Toast bildirimleri için
+import { ClerkProvider } from "@clerk/nextjs"; 
+import { Toaster } from "sonner"; 
 
 import "./globals.css";
 
@@ -17,14 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="tr">
-      <body className={inter.className}>
-        {/* Ana İçerik */}
-        {children}
-        
-        {/* Toast Bildirim Bileşeni (En altta olmalı) */}
-        <Toaster richColors />
-      </body>
-    </html>
+    // ClerkProvider EN DIŞTA olmalı
+    <ClerkProvider>
+      <html lang="tr">
+        <body className={inter.className}>
+          {children}
+          <Toaster richColors />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
