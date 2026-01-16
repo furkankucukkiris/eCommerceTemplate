@@ -1,83 +1,44 @@
-import Link from "next/link";
-import { Search, ShoppingBag, Menu, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import NavbarActions from "@/components/navbar-actions";
-import Footer from "@/components/footer"; // YENİ: Footer'ı import ettik
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { StoreNavbar } from "@/components/store-navbar"; // Az önce oluşturduğumuz bileşen
+import { FloatingContact } from "@/components/floating-contact";
+import  Footer  from "@/components/footer";
 
-export default function ShopLayout({
+export default async function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { userId } = await auth();
+
+  // Aktif mağazayı bul (Logo ve Sosyal Linklerle birlikte)
+  const store = await db.store.findFirst({
+    where: {
+      // Eğer çoklu mağaza yoksa ilkini al, varsa mantığı değiştirebiliriz.
+      // Şimdilik en son oluşturulan veya aktif olanı alıyoruz.
+      // NOT: Eğer public bir siteyse userId kontrolü kaldırılabilir.
+    },
+    include: {
+      categories: true,  // Navbar'daki linkler için
+      socialLinks: true, // Sosyal medya ikonları için
+    }
+  });
+
+  // Eğer mağaza yoksa admin paneline at (veya hata göster)
+  if (!store) {
+    redirect('/sign-in');
+  }
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* --- NAVBAR --- */}
-      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="container mx-auto flex h-16 items-center px-4">
-          
-          {/* Mobil Menü */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden mr-2">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-              <SheetTitle>Menü</SheetTitle>
-              <nav className="flex flex-col gap-4 mt-8">
-                <Link href="/" className="text-lg font-medium hover:text-blue-600">Anasayfa</Link>
-                <Link href="/shop" className="text-lg font-medium hover:text-blue-600">Tüm Ürünler</Link>
-                <Link href="/categories" className="text-lg font-medium hover:text-blue-600">Kategoriler</Link>
-                <Link href="/about" className="text-lg font-medium hover:text-blue-600">Hakkımızda</Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
-
-          {/* Logo */}
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="text-xl font-bold">MAĞAZA<span className="text-blue-600">LOGO</span></span>
-          </Link>
-
-          {/* Masaüstü Menü */}
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-            <Link href="/" className="transition-colors hover:text-blue-600">Anasayfa</Link>
-            <Link href="/shop" className="transition-colors hover:text-blue-600">Mağaza</Link>
-            <Link href="/categories" className="transition-colors hover:text-blue-600">Kategoriler</Link>
-          </nav>
-
-          {/* Sağ Taraf (Arama & Sepet) */}
-          <div className="flex flex-1 items-center justify-end space-x-4">
-            <div className="w-full max-w-sm hidden md:block relative">
-               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-               <Input 
-                 type="search" 
-                 placeholder="Ürün ara..." 
-                 className="pl-9 h-9 bg-gray-50 focus-visible:ring-blue-600" 
-               />
-            </div>
-            
-            <nav className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-              </Button>
-              
-              {/* ESKİ BUTON YERİNE YENİSİ GELDİ */}
-              <NavbarActions />
-              
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Ana İçerik */}
-      <main className="flex-1">
-        {children}
-      </main>
-
-      {/* YENİ: Footer Bileşeni */}
+    <div className="h-full">
+      {/* YENİ NAVBAR */}
+      <StoreNavbar store={store} />
+      
+      {children}
+      
       <Footer />
+      <FloatingContact />
     </div>
   );
 }

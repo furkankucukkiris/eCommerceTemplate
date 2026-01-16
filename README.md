@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Modern E-Commerce Platform & CMS
 
-## Getting Started
+This project is a full-stack e-commerce solution designed to provide a seamless experience for both store owners (Admin) and customers (Storefront). It leverages the latest web technologies to ensure performance, scalability, and ease of use.
 
-First, run the development server:
+Bu proje, hem mağaza sahipleri (Admin) hem de müşteriler (Vitrin) için sorunsuz bir deneyim sağlamak üzere tasarlanmış tam kapsamlı bir e-ticaret çözümüdür. Performans, ölçeklenebilirlik ve kullanım kolaylığı sağlamak için en son web teknolojilerinden yararlanır.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🇬🇧 EN - Project Overview & Purpose
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🎯 Goal
+Our primary goal is to build a **production-ready e-commerce template** that goes beyond simple product listing. We aim to create a dynamic ecosystem where users can:
+1.  **Manage Everything:** Control products, categories, variations (colors, sizes), and store settings from a centralized Admin Dashboard.
+2.  **Scale Easily:** Support multiple stores under a single account (Multi-tenant architecture).
+3.  **Offer Modern UX:** Provide customers with a high-end shopping experience featuring modern design patterns like Bento Grids, dynamic navigation, and seamless checkout flows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### ✨ Key Features
+* **Multi-Store Support:** Manage multiple separate e-commerce stores from a single dashboard.
+* **Dynamic CMS:** Real-time management of Billboards, Categories, Products, and Attributes (Colors/Sizes).
+* **Modern UI/UX:**
+    * **Bento Grid Design:** Apple-style feature showcasing.
+    * **Dynamic Navbar:** Customizable logos and social media links directly from the admin panel.
+    * **Floating Contact:** Minimalist "Quick Action" button for WhatsApp and Phone support.
+* **Robust Backend:** Built with Next.js 15+ Server Actions for speed and SEO optimization.
+* **Secure Authentication:** Integrated with Clerk for robust user management.
+* **Database:** PostgreSQL with Prisma ORM for type-safe database interactions.
 
-## Learn More
+### 🛠 Tech Stack
+* **Framework:** Next.js 15 (App Router)
+* **Language:** TypeScript
+* **Styling:** Tailwind CSS & Shadcn UI
+* **Database:** PostgreSQL & Prisma ORM
+* **Auth:** Clerk
+* **Uploads:** Cloudinary (for image management)
 
-To learn more about Next.js, take a look at the following resources:
+### 🚀 Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1.  **Clone and Install:**
+    ```bash
+    npm install
+    ```
+2.  **Environment Setup:**
+    Create a `.env` file and configure your keys (Clerk, Database URL, Cloudinary).
+3.  **Database Sync:**
+    ```bash
+    npx prisma db push
+    npx prisma generate
+    ```
+4.  **Run Development Server:**
+    ```bash
+    npm run dev
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🇹🇷 TR - Proje Özeti ve Amaç
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 🎯 Hedef
+Temel amacımız, basit bir ürün listeleme sitesinin ötesine geçerek **üretime hazır (production-ready) bir e-ticaret altyapısı** kurmaktır. Aşağıdaki özellikleri barındıran dinamik bir ekosistem oluşturmayı hedefliyoruz:
+1.  **Tam Yönetim:** Ürünleri, kategorileri, varyasyonları (renk, beden vb.) ve mağaza ayarlarını merkezi bir Yönetim Panelinden kontrol edebilme.
+2.  **Kolay Ölçeklenme:** Tek bir hesap altında birden fazla mağazayı yönetebilme desteği (Multi-tenant mimari).
+3.  **Modern Kullanıcı Deneyimi:** Bento Grid tasarımları, dinamik navigasyon ve akıcı ödeme süreçleri ile müşterilere üst düzey bir alışveriş deneyimi sunma.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### ✨ Öne Çıkan Özellikler
+* **Çoklu Mağaza Desteği:** Tek bir panelden birbirinden bağımsız birden fazla mağazayı yönetin.
+* **Dinamik CMS (İçerik Yönetimi):** Billboardlar, Kategoriler, Ürünler ve Niteliklerin (Renk/Beden) gerçek zamanlı yönetimi.
+* **Modern Arayüz:**
+    * **Bento Grid Tasarımı:** Özellikleri sergilemek için modern, Apple tarzı kutucuk yapısı.
+    * **Dinamik Navbar:** Logo ve sosyal medya linklerinin doğrudan admin panelinden değiştirilebilmesi.
+    * **Floating Contact:** WhatsApp ve Telefon desteği için minimalist, açılır kapanır hızlı iletişim butonu.
+* **Güçlü Altyapı:** Hız ve SEO optimizasyonu için Next.js 15+ Server Actions ile geliştirildi.
+* **Güvenli Kimlik Doğrulama:** Clerk entegrasyonu ile güvenli kullanıcı yönetimi.
+* **Veritabanı:** Prisma ORM ve PostgreSQL ile güvenli ve hızlı veri yönetimi.
+
+### 🛠 Kullanılan Teknolojiler
+* **Çatı (Framework):** Next.js 15 (App Router)
+* **Dil:** TypeScript
+* **Stil:** Tailwind CSS & Shadcn UI
+* **Veritabanı:** PostgreSQL & Prisma ORM
+* **Kimlik Doğrulama:** Clerk
+* **Görsel Yönetimi:** Cloudinary
+
+### 🚀 Kurulum
+
+1.  **Paketleri Yükleyin:**
+    ```bash
+    npm install
+    ```
+2.  **Ortam Değişkenleri:**
+    `.env` dosyasını oluşturun ve gerekli anahtarları (Clerk, Database URL, Cloudinary) girin.
+3.  **Veritabanını Eşitleyin:**
+    ```bash
+    npx prisma db push
+    npx prisma generate
+    ```
+4.  **Projeyi Başlatın:**
+    ```bash
+    npm run dev
+    ```

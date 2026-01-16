@@ -29,6 +29,9 @@ const SettingsPage = async (props: SettingsPageProps) => {
     where: {
       id: params.storeId,
       userId
+    },
+    include: {
+        socialLinks: true
     }
   });
 

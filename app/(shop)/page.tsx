@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { ProductList } from "@/components/product-list";
-import { Container } from "@/components/ui/container"; 
+import { Container } from "@/components/ui/container";
+import { StoreHero } from "@/components/store-hero"; // Yeni bileşen
+import { FeaturesBento } from "@/components/features-bento"; // Yeni bileşen
 
 // Ürünleri Çeken Fonksiyon
 async function getProducts() {
@@ -13,14 +15,9 @@ async function getProducts() {
     orderBy: { createdAt: 'desc' }
   });
 
-  // DÜZELTME BURADA:
-  // Prisma'dan gelen veriyi map'leyerek Decimal olan price'ı number'a çeviriyoruz.
   return products.map((item) => ({
     ...item,
-    price: item.price.toNumber(), // Decimal -> Number dönüşümü
-    // Eğer tarih hatası da alırsan bunları da açabilirsin:
-    // createdAt: item.createdAt.toISOString(),
-    // updatedAt: item.updatedAt.toISOString()
+    price: item.price.toNumber(),
   }));
 }
 
@@ -28,24 +25,29 @@ export default async function StoreHome() {
   const products = await getProducts();
 
   return (
-    <Container>
-      <div className="space-y-10 pb-10 pt-10">
-        
-        {/* Mağazanın Kendi Karşılama Alanı */}
-        <div className="text-center space-y-4 py-8 md:py-12 bg-slate-50 rounded-xl mx-4 sm:mx-0">
-           <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
-             Koleksiyonu Keşfet
-           </h1>
-           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-             En yeni ürünlerimiz, en uygun fiyatlarla şimdi stoklarda.
-           </p>
+    <div className="bg-white pb-10">
+      
+      {/* 1. Modern Hero Alanı */}
+      <StoreHero />
+
+      {/* 2. Özellikler / Bento Grid */}
+      <FeaturesBento />
+
+      <Container>
+        <div className="flex flex-col gap-y-8 px-4 sm:px-0 mt-10">
+           {/* 3. Ürün Listesi */}
+           {/* Başlığı biraz daha stilize edelim */}
+           <div className="flex items-center justify-between mb-4">
+             <div>
+               <h2 className="text-3xl font-bold tracking-tight">Öne Çıkanlar</h2>
+               <p className="text-sm text-muted-foreground">Bu haftanın en çok ilgi gören parçaları.</p>
+             </div>
+             {/* Buraya "Tümünü Gör" butonu eklenebilir */}
+           </div>
+           
+           <ProductList title="" items={products} />
         </div>
-        
-        {/* Ürün Listesi */}
-        <div className="flex flex-col gap-y-8 px-4 sm:px-0">
-           <ProductList title="Öne Çıkan Ürünler" items={products} />
-        </div>
-      </div>
-    </Container>
+      </Container>
+    </div>
   );
 }
