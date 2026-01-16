@@ -12,10 +12,12 @@ const productSchema = z.object({
     message: "Fiyat 1'den büyük olmalıdır.",
   }),
   categoryId: z.string().min(1, {
-    message: "Lütfen bir kategori seçin.", 
+    message: "Lütfen bir kategori seçin.",
   }),
   storeId: z.string(),
-  images: z.object({ url: z.string() }).array(), 
+  images: z.object({ url: z.string() }).array(),
+
+  attributes: z.array(z.string()).optional(),
 });
 
 export async function createProduct(formData: z.infer<typeof productSchema>) {
@@ -25,7 +27,7 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
     return { error: "Geçersiz alanlar!" };
   }
 
-  const { name, price, categoryId, storeId, images } = validatedFields.data;
+  const { name, price, categoryId, storeId, images, attributes } = validatedFields.data;
 
   try {
     await db.product.create({
@@ -43,12 +45,16 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
             ],
           },
         },
+        attributes: {
+          // Gelen ID listesini veritabanına bağlar
+          connect: attributes?.map((itemId) => ({ id: itemId })) || [],
+        },
       },
     });
 
     // Listeyi yenile
     revalidatePath(`/${storeId}/products`);
-    
+
     return { success: "Ürün başarıyla oluşturuldu!" };
 
   } catch (error) {
@@ -68,6 +74,7 @@ export const updateProduct = async (
     images: { url: string }[];
     isFeatured?: boolean;
     isArchived?: boolean;
+    attributes?: string[];
   }
 ) => {
   try {
@@ -104,9 +111,14 @@ export const updateProduct = async (
             data: [...data.images.map((image: { url: string }) => image)],
           },
         },
+        attributes: {
+          // 'set' komutu eski ilişkileri koparır ve sadece yeni listeyi bağlar.
+          // Eğer data.attributes boşsa veya undefined ise boş dizi göndeririz.
+          set: data.attributes?.map((id) => ({ id })) || [],
+        },
       },
     });
-    
+
     // ÖNEMLİ: Listeleme sayfasının cache'ini temizle
     revalidatePath(`/${storeId}/products`);
 
@@ -147,7 +159,7 @@ export const toggleArchive = async (storeId: string, productId: string, isArchiv
       where: { id: productId },
       data: { isArchived }
     });
-    
+
     revalidatePath(`/${storeId}/products`);
     revalidatePath(`/${storeId}/products/archived`); // Arşiv sayfasını da yenile
     return { success: true };
@@ -164,7 +176,7 @@ export const toggleFeatured = async (storeId: string, productId: string, isFeatu
       where: { id: productId },
       data: { isFeatured }
     });
-    
+
     revalidatePath(`/${storeId}/products`);
     return { success: true };
   } catch (error) {

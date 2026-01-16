@@ -1,36 +1,48 @@
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { createStore } from "@/actions/store"; // 1. Adımda oluşturduğumuz dosya
 
 export default async function DashboardPage() {
-  // 1. Kullanıcıyı Sunucu Tarafında Doğrula
   const { userId } = await auth();
 
-  // Eğer sunucu kullanıcıyı tanıyamazsa, sign-in'e atar.
   if (!userId) {
     redirect('/sign-in');
   }
 
-  // 2. Kullanıcının Mağazasını Bul
   const store = await db.store.findFirst({
     where: {
       userId: userId
     }
   });
 
-  // 3. Yönlendirme Yap
   if (store) {
     redirect(`/${store.id}`);
   } else {
-    // Mağaza yoksa anasayfaya değil, geçici olarak buraya düşsün ki hatayı anlayalım.
-    // İleride buraya "Mağaza Oluştur" butonu koyacağız.
+    // BURAYI GÜNCELLEDİK: Artık sadece yazı değil, form var.
     return (
-        <div className="flex flex-col items-center justify-center h-full p-8">
-            <h1 className="text-2xl font-bold">Mağaza Bulunamadı</h1>
-            <p className="text-muted-foreground mt-2">
-                Giriş yapmış görünüyorsunuz (User ID: {userId}) ancak bir mağazanız yok.
+        <div className="flex flex-col items-center justify-center h-full p-8 gap-4">
+            <h1 className="text-2xl font-bold">Hoş Geldiniz! 👋</h1>
+            <p className="text-muted-foreground text-center max-w-md">
+                Sistemi kullanmaya başlamak için ilk mağazanızı oluşturun.
             </p>
-            <a href="/" className="mt-4 text-blue-500 underline">Ana Sayfaya Dön</a>
+            
+            <form action={createStore} className="flex flex-col gap-3 w-full max-w-sm border p-6 rounded-lg shadow-sm">
+                <label className="text-sm font-medium">Mağaza Adı</label>
+                <input 
+                  name="name" 
+                  type="text" 
+                  placeholder="Örn: Ayakkabı Dünyası" 
+                  className="border p-2 rounded-md w-full"
+                  required 
+                />
+                <button 
+                  type="submit" 
+                  className="bg-black text-white p-2 rounded-md hover:bg-gray-800 transition"
+                >
+                  Mağazayı Oluştur
+                </button>
+            </form>
         </div>
     );
   }
