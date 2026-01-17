@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server"; // EKLENDİ: Kimlik doğrulama için gerekli
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -16,18 +17,37 @@ const productSchema = z.object({
   }),
   storeId: z.string(),
   images: z.object({ url: z.string() }).array(),
-
   attributes: z.array(z.string()).optional(),
 });
 
 export async function createProduct(formData: z.infer<typeof productSchema>) {
+  // 1. GÜVENLİK: Kullanıcı oturumunu al
+  const { userId } = await auth();
+
   const validatedFields = productSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Geçersiz alanlar!" };
   }
 
+  if (!userId) {
+    return { error: "Oturum açmanız gerekiyor." };
+  }
+
   const { name, price, categoryId, storeId, images, attributes } = validatedFields.data;
+
+  // 2. GÜVENLİK: Mağaza sahibini doğrula
+  // İşlem yapılan mağaza gerçekten bu kullanıcıya mı ait?
+  const storeByUserId = await db.store.findFirst({
+    where: {
+      id: storeId,
+      userId,
+    },
+  });
+
+  if (!storeByUserId) {
+    return { error: "Bu işlem için yetkiniz yok." };
+  }
 
   try {
     await db.product.create({
@@ -46,13 +66,11 @@ export async function createProduct(formData: z.infer<typeof productSchema>) {
           },
         },
         attributes: {
-          // Gelen ID listesini veritabanına bağlar
           connect: attributes?.map((itemId) => ({ id: itemId })) || [],
         },
       },
     });
 
-    // Listeyi yenile
     revalidatePath(`/${storeId}/products`);
 
     return { success: "Ürün başarıyla oluşturuldu!" };
@@ -77,17 +95,38 @@ export const updateProduct = async (
     attributes?: string[];
   }
 ) => {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Yetkisiz erişim");
+  }
+
+  // GÜVENLİK: Mağaza sahipliği kontrolü
+  const storeByUserId = await db.store.findFirst({
+    where: {
+      id: storeId,
+      userId,
+    },
+  });
+
+  if (!storeByUserId) {
+    throw new Error("Bu işlem için yetkiniz yok.");
+  }
+
   try {
+    // Ürün var mı kontrolü (Ayrıca storeId ile eşleşiyor mu?)
     const product = await db.product.findFirst({
       where: {
         id: productId,
-        storeId: storeId, // Mağaza ID eşleşmeli
+        storeId: storeId,
       }
     });
 
     if (!product) {
-      throw new Error("Ürün bulunamadı veya bu işlem için yetkiniz yok.");
+      throw new Error("Ürün bulunamadı.");
     }
+
+    // 1. Eski resimleri sil (Database ilişkisini temizle)
     await db.product.update({
       where: { id: productId },
       data: {
@@ -102,7 +141,7 @@ export const updateProduct = async (
       where: { id: productId },
       data: {
         name: data.name,
-        price: data.price, // Prisma Decimal'a otomatik çevirir
+        price: data.price,
         categoryId: data.categoryId,
         isFeatured: data.isFeatured,
         isArchived: data.isArchived,
@@ -112,14 +151,11 @@ export const updateProduct = async (
           },
         },
         attributes: {
-          // 'set' komutu eski ilişkileri koparır ve sadece yeni listeyi bağlar.
-          // Eğer data.attributes boşsa veya undefined ise boş dizi göndeririz.
           set: data.attributes?.map((id) => ({ id })) || [],
         },
       },
     });
 
-    // ÖNEMLİ: Listeleme sayfasının cache'ini temizle
     revalidatePath(`/${storeId}/products`);
 
     return { success: true };
@@ -132,9 +168,26 @@ export const updateProduct = async (
 
 // Ürün Silme
 export const deleteProduct = async (storeId: string, productId: string) => {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Yetkisiz erişim");
+  }
+
+  // GÜVENLİK: Mağaza sahipliği kontrolü
+  const storeByUserId = await db.store.findFirst({
+    where: {
+      id: storeId,
+      userId,
+    },
+  });
+
+  if (!storeByUserId) {
+    throw new Error("Bu işlem için yetkiniz yok.");
+  }
+
   try {
-    // DÜZELTME: delete yerine deleteMany kullanıyoruz.
-    // deleteMany, 'storeId' gibi unique olmayan alanlarla filtrelemeye izin verir.
+    // Sadece mağazaya ait ürünü sil (deleteMany güvenlidir)
     await db.product.deleteMany({
       where: {
         id: productId,
@@ -154,14 +207,31 @@ export const deleteProduct = async (storeId: string, productId: string) => {
 
 // Hızlı Arşivleme / Arşivden Çıkarma
 export const toggleArchive = async (storeId: string, productId: string, isArchived: boolean) => {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Yetkisiz erişim");
+  }
+
+  // GÜVENLİK KONTROLÜ
+  const storeByUserId = await db.store.findFirst({
+    where: { id: storeId, userId },
+  });
+
+  if (!storeByUserId) {
+    throw new Error("Yetkisiz işlem.");
+  }
+
   try {
+    // Güncelleme yaparken storeId'yi de where koşuluna ekleyerek ekstra güvenlik sağlayabiliriz
+    // Ancak storeByUserId kontrolü zaten bu mağazanın bizim olduğunu kanıtladı.
     await db.product.update({
       where: { id: productId },
       data: { isArchived }
     });
 
     revalidatePath(`/${storeId}/products`);
-    revalidatePath(`/${storeId}/products/archived`); // Arşiv sayfasını da yenile
+    revalidatePath(`/${storeId}/products/archived`);
     return { success: true };
   } catch (error) {
     console.error("Arşivleme hatası:", error);
@@ -171,6 +241,21 @@ export const toggleArchive = async (storeId: string, productId: string, isArchiv
 
 // Hızlı Öne Çıkarma
 export const toggleFeatured = async (storeId: string, productId: string, isFeatured: boolean) => {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Yetkisiz erişim");
+  }
+
+  // GÜVENLİK KONTROLÜ
+  const storeByUserId = await db.store.findFirst({
+    where: { id: storeId, userId },
+  });
+
+  if (!storeByUserId) {
+    throw new Error("Yetkisiz işlem.");
+  }
+
   try {
     await db.product.update({
       where: { id: productId },

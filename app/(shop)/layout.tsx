@@ -33,7 +33,7 @@ export default async function ShopLayout({
   return (
     <div className="h-full">
       {/* YENİ NAVBAR */}
-      <StoreNavbar store={store} />
+      <StoreNavbar />
       
       {children}
       

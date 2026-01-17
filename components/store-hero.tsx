@@ -1,39 +1,146 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShoppingBag } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+
+// Slider Verileri (İleride admin panelden de çekilebilir)
+const SLIDES = [
+  {
+    id: 1,
+    title: "Yaz Koleksiyonu 2026",
+    subtitle: "Doğanın renklerinden ilham alan yeni sezon parçalarıyla tarzını yansıt.",
+    // Örnek moda görseli (Unsplash)
+    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop",
+    ctaText: "Koleksiyonu İncele",
+    ctaLink: "/category/yaz-koleksiyonu",
+    position: "center" // Yazının hizası
+  },
+  {
+    id: 2,
+    title: "Minimalist & Şık",
+    subtitle: "Eviniz için sade, işlevsel ve estetik tasarımlar.",
+    // Örnek dekorasyon görseli
+    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=2158&auto=format&fit=crop",
+    ctaText: "Alışverişe Başla",
+    ctaLink: "/category/ev-yasam",
+    position: "left"
+  },
+  {
+    id: 3,
+    title: "Teknoloji Tutkusu",
+    subtitle: "Sınırları zorlayan en yeni elektronik ürünler şimdi stoklarda.",
+    // Örnek teknoloji görseli
+    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop",
+    ctaText: "Fırsatları Gör",
+    ctaLink: "/category/elektronik",
+    position: "right"
+  }
+];
 
 export const StoreHero = () => {
+  const [current, setCurrent] = useState(0);
+
+  // Otomatik Geçiş (5 saniyede bir)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev === SLIDES.length - 1 ? 0 : prev + 1));
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => {
+    setCurrent(current === SLIDES.length - 1 ? 0 : current + 1);
+  };
+
+  const prevSlide = () => {
+    setCurrent(current === 0 ? SLIDES.length - 1 : current - 1);
+  };
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gray-900 text-white mx-4 sm:mx-8 md:mx-12 lg:mx-20 my-8">
-      {/* Arkaplan Efekti (Gradient Blob) */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute -top-[50%] -left-[20%] w-[70%] h-[70%] bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-[50%] -right-[20%] w-[70%] h-[70%] bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-      </div>
+    <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden bg-gray-900 text-white">
+      
+      {/* Slaytlar */}
+      {SLIDES.map((slide, index) => (
+        <div
+          key={slide.id}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            index === current ? "opacity-100 z-10" : "opacity-0 z-0"
+          }`}
+        >
+          {/* Arkaplan Resmi */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-[6000ms] ease-out scale-105"
+            style={{ 
+              backgroundImage: `url(${slide.image})`,
+              // Aktif slayt ise hafifçe zoom efekti yapıyoruz (scale)
+              transform: index === current ? "scale(110%)" : "scale(100%)"
+            }}
+          />
+          
+          {/* Karartma Katmanı (Overlay) - Yazının okunması için */}
+          <div className="absolute inset-0 bg-black/40" />
 
-      <div className="relative z-10 px-6 py-16 sm:px-12 sm:py-24 lg:py-32 flex flex-col items-center text-center">
-        <div className="inline-flex items-center rounded-full border border-gray-700 bg-gray-800/50 px-3 py-1 text-sm text-gray-300 backdrop-blur-xl mb-6">
-          <span className="flex h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-          Yeni Sezon Stoklarda
-        </div>
-        
-        <h1 className="text-4xl font-black tracking-tighter sm:text-6xl md:text-7xl lg:text-8xl bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
-          TARZINI <br className="hidden sm:block" /> YANSIT.
-        </h1>
-        
-        <p className="mt-6 max-w-lg text-lg text-gray-400 sm:text-xl">
-          Minimalist tasarımlar, sürdürülebilir materyaller ve geleceğin modası şimdi tek bir platformda.
-        </p>
+          {/* İçerik Alanı */}
+          <div className="relative z-20 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
+            <div className={`max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 ${
+              slide.position === "center" ? "mx-auto text-center items-center" : 
+              slide.position === "right" ? "ml-auto text-right items-end" : "text-left items-start"
+            }`}>
+              
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
+                {slide.title}
+              </h1>
+              
+              <p className="text-lg md:text-xl text-gray-200 drop-shadow-md">
+                {slide.subtitle}
+              </p>
+              
+              <div className="pt-4">
+                <Button 
+                  asChild 
+                  size="lg" 
+                  className="bg-white text-black hover:bg-gray-200 hover:scale-105 transition-all duration-300 rounded-full px-8 py-6 text-lg font-semibold shadow-xl"
+                >
+                  <Link href={slide.ctaLink} className="flex items-center gap-2">
+                    {slide.ctaText}
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </Button>
+              </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <Button size="lg" className="rounded-full bg-white text-black hover:bg-gray-200 px-8 h-12">
-            Alışverişe Başla
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button size="lg" variant="outline" className="rounded-full border-gray-700 text-black hover:bg-gray-800 hover:text-white h-12">
-            Koleksiyonları Gör
-          </Button>
+            </div>
+          </div>
         </div>
+      ))}
+
+      {/* Navigasyon Okları (Sadece Masaüstünde gösterelim veya her zaman) */}
+      <button 
+        onClick={prevSlide}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md text-white transition-all hidden md:block"
+      >
+        <ChevronLeft size={32} />
+      </button>
+
+      <button 
+        onClick={nextSlide}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md text-white transition-all hidden md:block"
+      >
+        <ChevronRight size={32} />
+      </button>
+
+      {/* Alt Noktalar (Dots) */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-3">
+        {SLIDES.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrent(index)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              current === index ? "w-8 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
+            }`}
+          />
+        ))}
       </div>
     </div>
   );

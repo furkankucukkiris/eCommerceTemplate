@@ -1,18 +1,15 @@
 import { db } from "@/lib/db";
 import { ProductList } from "@/components/product-list";
 import { Container } from "@/components/ui/container";
-import { StoreHero } from "@/components/store-hero"; // Yeni bileşen
-import { FeaturesBento } from "@/components/features-bento"; // Yeni bileşen
+import { StoreHero } from "@/components/store-hero"; 
+import { FeaturesBento } from "@/components/features-bento";
 
-// Ürünleri Çeken Fonksiyon
 async function getProducts() {
   const products = await db.product.findMany({
     where: { isFeatured: true, isArchived: false },
-    include: { 
-      category: true,
-      images: true
-    },
-    orderBy: { createdAt: 'desc' }
+    include: { category: true, images: true },
+    orderBy: { createdAt: 'desc' },
+    take: 8 // Ana sayfada çok yığma yapmamak için limit
   });
 
   return products.map((item) => ({
@@ -25,27 +22,42 @@ export default async function StoreHome() {
   const products = await getProducts();
 
   return (
-    <div className="bg-white pb-10">
+    <div className="bg-gray-50/50 min-h-screen pb-10">
       
-      {/* 1. Modern Hero Alanı */}
-      <StoreHero />
-
-      {/* 2. Özellikler / Bento Grid */}
-      <FeaturesBento />
+      {/* Hero Bölümü - Tam Genişlik */}
+      <div className="w-full">
+        <StoreHero />
+      </div>
 
       <Container>
-        <div className="flex flex-col gap-y-8 px-4 sm:px-0 mt-10">
-           {/* 3. Ürün Listesi */}
-           {/* Başlığı biraz daha stilize edelim */}
-           <div className="flex items-center justify-between mb-4">
-             <div>
-               <h2 className="text-3xl font-bold tracking-tight">Öne Çıkanlar</h2>
-               <p className="text-sm text-muted-foreground">Bu haftanın en çok ilgi gören parçaları.</p>
-             </div>
-             {/* Buraya "Tümünü Gör" butonu eklenebilir */}
-           </div>
-           
-           <ProductList title="" items={products} />
+        <div className="space-y-16 py-10">
+          
+          {/* Özellikler Grid'i */}
+          <section>
+            <FeaturesBento />
+          </section>
+
+          {/* Öne Çıkan Ürünler */}
+          <section className="flex flex-col gap-y-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 px-4 sm:px-0">
+               <div>
+                 <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">
+                   Koleksiyonu Keşfet
+                 </h2>
+                 <p className="mt-2 text-sm text-gray-500">
+                   Sezonun en dikkat çeken parçaları sizin için seçildi.
+                 </p>
+               </div>
+               <a href="/category/all" className="text-sm font-medium hover:underline underline-offset-4">
+                 Tümünü Gör &rarr;
+               </a>
+            </div>
+            
+            <div className="px-4 sm:px-0">
+               <ProductList title="" items={products} />
+            </div>
+          </section>
+
         </div>
       </Container>
     </div>

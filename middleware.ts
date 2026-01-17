@@ -5,10 +5,10 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/uploadthing(.*)',
-  '/api(.*)', // Güvenlik uyarısını daha sonra detaylandırırız
-  '/', // Anasayfa (Shop kısmı)
-  '/product(.*)' // YENİ: Ürün detay sayfaları artık herkese açık!
+  '/api/uploadthing(.*)', // Resim yükleme servisi genelde public callback ister
+  '/api/webhook(.*)', // Stripe/Clerk webhookları için
+  '/', 
+  '/product(.*)'
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
