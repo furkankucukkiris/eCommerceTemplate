@@ -4,12 +4,13 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-// 1. Zod Şeması: Kategori adı zorunlu
+// 1. Zod Şeması: Artık attributeIds (string array) de kabul ediyoruz
 const categorySchema = z.object({
   name: z.string().min(2, {
     message: "Kategori adı en az 2 karakter olmalıdır.",
   }),
   storeId: z.string(),
+  attributeIds: z.array(z.string()).optional(), // Opsiyonel seçim
 });
 
 // Kategori Oluşturma
@@ -20,13 +21,17 @@ export async function createCategory(formData: z.infer<typeof categorySchema>) {
     return { error: "Geçersiz alanlar!" };
   }
 
-  const { name, storeId } = validatedFields.data;
+  const { name, storeId, attributeIds } = validatedFields.data;
 
   try {
     await db.category.create({
       data: {
         name,
         storeId,
+        // İlişkiyi kuruyoruz (Many-to-Many)
+        attributes: {
+          connect: attributeIds?.map((id) => ({ id })) || [],
+        },
       },
     });
 
@@ -43,7 +48,7 @@ export async function createCategory(formData: z.infer<typeof categorySchema>) {
 export const updateCategory = async (
   storeId: string,
   categoryId: string,
-  data: { name: string }
+  data: { name: string; attributeIds?: string[] }
 ) => {
   try {
     // Güvenlik: Önce bu mağazaya ait böyle bir kategori var mı?
@@ -57,7 +62,13 @@ export const updateCategory = async (
 
     await db.category.update({
       where: { id: categoryId },
-      data: { name: data.name },
+      data: { 
+        name: data.name,
+        // Güncelleme mantığı: Eskileri temizle (veya set ile üzerine yaz), yenileri bağla
+        attributes: {
+            set: data.attributeIds?.map((id) => ({ id })) || []
+        }
+      },
     });
     
     revalidatePath(`/${storeId}/categories`);
@@ -69,27 +80,19 @@ export const updateCategory = async (
   }
 };
 
-// Kategori Silme (Güvenlik Kontrollü)
+// Kategori Silme (Değişmedi ama bütünlük için ekliyorum)
 export const deleteCategory = async (storeId: string, categoryId: string) => {
   try {
-    // 1. Önce bu kategoriye bağlı ürün var mı kontrol et
     const productsCount = await db.product.count({
-      where: {
-        categoryId: categoryId,
-        storeId: storeId
-      }
+      where: { categoryId: categoryId, storeId: storeId }
     });
 
     if (productsCount > 0) {
       throw new Error("Bu kategoride ürünler var. Önce ürünleri silin veya kategorisini değiştirin.");
     }
 
-    // 2. Engel yoksa sil
     await db.category.deleteMany({
-      where: {
-        id: categoryId,
-        storeId: storeId,
-      },
+      where: { id: categoryId, storeId: storeId },
     });
 
     revalidatePath(`/${storeId}/categories`);
@@ -97,7 +100,6 @@ export const deleteCategory = async (storeId: string, categoryId: string) => {
 
   } catch (error: any) {
     console.log("[CATEGORY_DELETE]", error);
-    // Hatayı UI'da göstermek için fırlatıyoruz
     throw new Error(error.message || "Kategori silinemedi.");
   }
 };
