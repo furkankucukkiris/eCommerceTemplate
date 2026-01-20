@@ -52,6 +52,7 @@ model Attribute {
   name        String    // Ekranda görünecek isim (Örn: "Beden", "Renk")
   valueType   String    // Frontend için ipucu: "TEXT" (Normal buton) veya "COLOR" (Renk kodu)
   values      AttributeValue[] // Bu niteliğe ait değerler
+  categories  Category[] @relation("CategoryToAttribute")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -78,6 +79,7 @@ model Category {
   store     Store     @relation(fields: [storeId], references: [id])
   name      String
   products  Product[]
+  attributes Attribute[] @relation("CategoryToAttribute")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -104,6 +106,7 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id])
   productId String
   product   Product @relation(fields: [productId], references: [id])
+  selectedOptions String? @default("")
   price     Decimal
   quantity Int @default(1)
   @@index([orderId])

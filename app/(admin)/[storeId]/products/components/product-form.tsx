@@ -1,129 +1,149 @@
 "use client";
 
-import { z } from "zod";
-import { useState, useTransition } from "react";
+import * as z from "zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useParams, useRouter } from "next/navigation";
 import { Trash } from "lucide-react";
+import { Category, Image, Product, Attribute, AttributeValue } from "@prisma/client";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Heading } from "@/components/heading";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ImageUpload from "@/components/image-upload";
-import { AlertModal } from "@/components/modals/alert-modal";
 import { createProduct, updateProduct, deleteProduct } from "@/actions/products";
-// YENİ: Select bileşenlerini import ediyoruz
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { AlertModal } from "@/components/modals/alert-modal"
+// Karmaşık tip tanımları
+export type CategoryWithAttributes = Category & {
+  attributes: (Attribute & { values: AttributeValue[] })[];
+};
 
-// Şemayı güncelledik: categoryId zorunlu
 const formSchema = z.object({
-  name: z.string().min(2, { message: "Ürün adı en az 2 karakter olmalıdır." }),
-  price: z.coerce.number().min(1, { message: "Fiyat en az 1 olmalıdır." }),
-  categoryId: z.string().min(1, { message: "Bir kategori seçmelisiniz." }), // YENİ
+  name: z.string().min(1, "Gerekli"),
   images: z.object({ url: z.string() }).array(),
+  price: z.coerce.number().min(1),
+  categoryId: z.string().min(1, "Kategori seçiniz"),
+  isFeatured: z.boolean().default(false).optional(),
+  isArchived: z.boolean().default(false).optional(),
+  attributes: z.array(z.string()).optional(), // Seçilen AttributeValue ID'leri
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
 
-// Props tanımına categories dizisini ekledik
+// DÜZELTME BURADA YAPILDI:
+// TypeScript'e diyoruz ki: "Gelen verideki 'price' alanı veritabanındaki gibi Decimal değil, Number olacak."
 interface ProductFormProps {
-  initialData: any | null;
-  categories: { id: string; name: string }[]; // YENİ
+  initialData: (Omit<Product, "price"> & {
+    price: number;
+    images: Image[];
+    attributes: AttributeValue[];
+  }) | null;
+  categories: CategoryWithAttributes[];
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({
+  initialData,
+  categories
+}) => {
   const params = useParams();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const title = initialData ? "Ürünü Düzenle" : "Ürün Ekle";
-  const description = initialData ? "Ürün detaylarını düzenleyin." : "Yeni bir ürün ekleyin.";
-  const action = initialData ? "Güncelle" : "Oluştur";
+  const title = initialData ? "Ürün Düzenle" : "Ürün Oluştur";
+  const action = initialData ? "Kaydet" : "Oluştur";
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: initialData ? {
       ...initialData,
-      price: parseFloat(String(initialData.price)),
+      price: parseFloat(String(initialData?.price)),
+      categoryId: initialData.categoryId || '', 
+      // İlişkili attributeValue ID'lerini diziye çevir
+      attributes: initialData.attributes.map((a) => a.id),
     } : {
-      name: "",
-      price: 0,
-      categoryId: "", // Varsayılan boş
+      name: '',
       images: [],
-    },
+      price: 0,
+      categoryId: '',
+      isFeatured: false,
+      isArchived: false,
+      attributes: [],
+    }
   });
 
-  const onSubmit = (values: ProductFormValues) => {
-    startTransition(() => {
+  // 1. Seçilen Kategoriyi Canlı İzle
+  const selectedCategoryId = form.watch("categoryId");
+  
+  // 2. O kategoriye ait nitelikleri bul
+  const activeCategory = categories.find((cat) => cat.id === selectedCategoryId);
+  const availableAttributes = activeCategory ? activeCategory.attributes : [];
+
+  const onSubmit = async (data: ProductFormValues) => {
+    try {
+      setLoading(true);
+      
+      // storeId'yi ekliyoruz
+      const productData = {
+        ...data,
+        storeId: params.storeId as string
+      };
+
       if (initialData) {
-        // Güncelleme
-        updateProduct(params.storeId as string, params.productId as string, values)
-          .then(() => {
-            router.push(`/${params.storeId}/products`);
-            router.refresh();
-          });
+        await updateProduct(params.storeId as string, params.productId as string, data);
       } else {
-        // Oluşturma
-        createProduct({ ...values, storeId: params.storeId as string })
-          .then(() => {
-            router.push(`/${params.storeId}/products`);
-            router.refresh();
-          });
+        await createProduct(productData);
       }
-    });
+      
+      router.push(`/${params.storeId}/products`);
+      router.refresh();
+      toast.success("İşlem başarılı.");
+    } catch (error) {
+      console.error(error); // Hatayı konsola yazdır ki görebilelim
+      toast.error("Hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onDelete = async () => {
-    startTransition(() => {
-        deleteProduct(params.storeId as string, params.productId as string)
-            .then(() => {
-                router.push(`/${params.storeId}/products`);
-                router.refresh();
-            })
-            .catch(() => console.error("Silme hatası"));
-    });
+    try {
+      setLoading(true);
+      await deleteProduct(params.storeId as string, params.productId as string);
+      router.push(`/${params.storeId}/products`);
+      router.refresh();
+      toast.success("Ürün silindi.");
+    } catch (error) {
+      toast.error("Hata oluştu.");
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
   };
 
   return (
     <>
-      <AlertModal 
-        isOpen={open} 
-        onClose={() => setOpen(false)}
-        onConfirm={onDelete}
-        loading={isPending}
-      />
-      <div className="flex items-center justify-between">
-        <Heading title={title} description={description} />
-        {initialData && (
-          <Button
-            disabled={isPending}
-            variant="destructive"
-            size="sm"
-            onClick={() => setOpen(true)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      <Separator />
-      
+        <AlertModal 
+            isOpen={open} 
+            onClose={() => setOpen(false)}
+            onConfirm={onDelete}
+            loading={loading}
+        />
+        <div className="flex items-center justify-between">
+            <Heading title={title} description="Ürün bilgileri" />
+            {initialData && (
+            <Button disabled={loading} variant="destructive" size="icon" onClick={() => setOpen(true)}>
+                <Trash className="h-4 w-4" />
+            </Button>
+            )}
+        </div>
+        <Separator />
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full mt-4">
           
@@ -136,7 +156,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categorie
                 <FormControl>
                   <ImageUpload 
                     value={field.value.map((image) => image.url)} 
-                    disabled={isPending}
+                    disabled={loading} 
                     onChange={(url) => field.onChange([...field.value, { url }])}
                     onRemove={(url) => field.onChange([...field.value.filter((current) => current.url !== url)])}
                   />
@@ -154,7 +174,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categorie
                 <FormItem>
                   <FormLabel>Ürün Adı</FormLabel>
                   <FormControl>
-                    <Input disabled={isPending} placeholder="Örn: Deri Ceket" {...field} />
+                    <Input disabled={loading} placeholder="Ürün adı" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -165,21 +185,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categorie
               name="price"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fiyat (₺)</FormLabel>
+                  <FormLabel>Fiyat</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      disabled={isPending} 
-                      placeholder="99.90" 
-                      {...field}
-                    />
+                    <Input type="number" disabled={loading} placeholder="9.99" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            {/* YENİ: KATEGORİ SEÇİM ALANI */}
             <FormField
               control={form.control}
               name="categoryId"
@@ -187,14 +200,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categorie
                 <FormItem>
                   <FormLabel>Kategori</FormLabel>
                   <Select 
-                    disabled={isPending} 
-                    onValueChange={field.onChange} 
+                    disabled={loading} 
+                    onValueChange={(value) => {
+                        field.onChange(value);
+                        // Kategori değişirse seçili özellikleri sıfırlamak istersen:
+                        // form.setValue("attributes", []);
+                    }} 
                     value={field.value} 
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue defaultValue={field.value} placeholder="Kategori seçin" />
+                        <SelectValue placeholder="Kategori seçin" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -210,9 +227,56 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, categorie
               )}
             />
           </div>
-          <Button disabled={isPending} className="ml-auto" type="submit">
-            {action}
-          </Button>
+          
+          <Separator />
+          
+          {/* DINAMIK ATTRIBUTE ALANI */}
+          <div className="space-y-4">
+             <h3 className="text-lg font-medium">Ürün Özellikleri</h3>
+             {(!selectedCategoryId) && <p className="text-sm text-muted-foreground">Özellikleri görmek için lütfen önce kategori seçin.</p>}
+             
+             {selectedCategoryId && availableAttributes.length === 0 && (
+                <p className="text-sm text-muted-foreground">Bu kategoriye ait tanımlı özellik yok.</p>
+             )}
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {availableAttributes.map((attribute) => (
+                    <FormItem key={attribute.id} className="p-4 border rounded-md bg-slate-50">
+                        <FormLabel>{attribute.name}</FormLabel>
+                        <Select
+                            disabled={loading}
+                            // Formdaki attributes dizisini yönetiyoruz
+                            onValueChange={(selectedValueId) => {
+                                const current = form.getValues("attributes") || [];
+                                // Bu niteliğe ait diğer değerleri temizle (Single Select mantığı için)
+                                const otherValuesIds = attribute.values.map(v => v.id);
+                                const cleaned = current.filter(id => !otherValuesIds.includes(id));
+                                
+                                // Yeniyi ekle
+                                form.setValue("attributes", [...cleaned, selectedValueId]);
+                            }}
+                            // O anki seçili değeri bul
+                            value={attribute.values.find(v => (form.watch("attributes") || []).includes(v.id))?.id}
+                        >
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seçiniz" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {attribute.values.map((val) => (
+                                    <SelectItem key={val.id} value={val.id}>
+                                        {val.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </FormItem>
+                ))}
+             </div>
+          </div>
+
+          <Button disabled={loading} className="ml-auto" type="submit">{action}</Button>
         </form>
       </Form>
     </>

@@ -1,5 +1,10 @@
 import prismadb from "@/lib/prismadb";
 import { ProductForm } from "../components/product-form";
+import { Attribute, AttributeValue, Category } from "@prisma/client";
+
+type CategoryWithAttributes = Category & {
+  attributes: (Attribute & { values: AttributeValue[] })[];
+};
 
 const ProductPage = async ({
   params
@@ -8,23 +13,32 @@ const ProductPage = async ({
 }) => {
   const { productId, storeId } = await params;
 
+  // 1. Ürünü çek
   const product = await prismadb.product.findUnique({
     where: {
       id: productId 
     },
     include: {
-      images: true 
+      images: true,
+      attributes: true // Ürünün seçili özelliklerini de getir
     }
   });
 
-  const categories = await prismadb.category.findMany({
+  // 2. Kategorileri GÜNCELLENMİŞ şekilde çek (Attributes dahil)
+  const categories = (await prismadb.category.findMany({
     where: {
       storeId: storeId,
     },
-  });
+    include: {
+      attributes: {
+        include: {
+          values: true
+        }
+      }
+    }
+  })) as unknown as CategoryWithAttributes[];
 
-  // DÜZELTME BURADA:
-  // Eğer ürün varsa, price (Decimal) alanını number'a çeviriyoruz.
+  // Fiyat formatlaması (Decimal -> Number)
   const formattedProduct = product ? {
     ...product,
     price: product.price.toNumber()
@@ -35,7 +49,7 @@ const ProductPage = async ({
       <div className="flex-1 space-y-4 p-8 pt-6">
         <ProductForm 
           categories={categories} 
-          initialData={formattedProduct} // Artık formattedProduct'ı gönderiyoruz
+          initialData={formattedProduct} 
         />
       </div>
     </div>
