@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs"; 
-import { Toaster } from "sonner"; 
+import { Toaster } from "@/components/ui/sonner";
 import { FloatingContact } from "@/components/floating-contact";
 
 import "./globals.css";
@@ -25,7 +25,7 @@ export default function RootLayout({
         <body className={inter.className}>
           {children}
           <FloatingContact />
-          <Toaster richColors />
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

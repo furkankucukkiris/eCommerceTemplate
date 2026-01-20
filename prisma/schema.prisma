@@ -1,4 +1,4 @@
-// prisma/schema.prisma
+// - prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -10,33 +10,42 @@ datasource db {
 }
 
 model Store {
-  id              String    @id @default(uuid())
+  id              String       @id @default(uuid())
   name            String
   userId          String
-  logoUrl         String?   @default("")
-  products        Product[]
-  orders          Order[]
-  categories      Category[]
-  attributes      Attribute[]
-  socialLinks     SocialLink[]
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  logoUrl         String?      @default("")
+  
+  // İlişkiler: Mağaza silinirse altındaki her şey silinsin (Cascade)
+  products        Product[]    @relation("StoreToProduct")
+  orders          Order[]      @relation("StoreToOrder")
+  categories      Category[]   @relation("StoreToCategory")
+  attributes      Attribute[]  @relation("StoreToAttribute")
+  socialLinks     SocialLink[] @relation("StoreToSocialLink")
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Product {
   id          String      @id @default(uuid())
   storeId     String
-  store       Store       @relation(fields: [storeId], references: [id])
+  store       Store       @relation("StoreToProduct", fields: [storeId], references: [id], onDelete: Cascade)
+  
   categoryId  String?
-  category    Category?    @relation(fields: [categoryId], references: [id])
+  category    Category?   @relation(fields: [categoryId], references: [id]) // Kategori silinirse ürün kalır, ilişki kopar
+  
   name        String
   price       Decimal
   isFeatured  Boolean     @default(false)
   isArchived  Boolean     @default(false)
+  
+  // Stok Yönetimi: Basit stok takibi için integer alan.
   stock       Int         @default(0)
-  attributes  AttributeValue[]
-  images      Image[]
-  orderItems  OrderItem[]
+  
+  attributes  AttributeValue[] // Ürünün varyasyon değerleri (Örn: Kırmızı, Large)
+  images      Image[]          // Resimler (Cascade delete Image modelinde tanımlı)
+  orderItems  OrderItem[]      // Sipariş kalemleri
+  
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -44,29 +53,35 @@ model Product {
   @@index([categoryId])
 }
 
-// YENİ: Varyasyonun Tipi (Örn: "Beden", "Renk", "Hafıza")
+// Varyasyonun Tipi (Örn: "Beden", "Renk")
 model Attribute {
   id          String    @id @default(uuid())
-  storeId     String    // Hangi mağazaya ait olduğu
-  store       Store     @relation(fields: [storeId], references: [id])
-  name        String    // Ekranda görünecek isim (Örn: "Beden", "Renk")
-  valueType   String    // Frontend için ipucu: "TEXT" (Normal buton) veya "COLOR" (Renk kodu)
-  values      AttributeValue[] // Bu niteliğe ait değerler
-  categories  Category[] @relation("CategoryToAttribute")
+  storeId     String    
+  store       Store     @relation("StoreToAttribute", fields: [storeId], references: [id], onDelete: Cascade)
+  
+  name        String    
+  valueType   String    // "TEXT" veya "COLOR"
+  
+  values      AttributeValue[] 
+  categories  Category[] @relation("CategoryToAttribute") // Bu nitelik hangi kategorilerde geçerli
+  
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([storeId])
 }
 
-// YENİ: Varyasyonun Değeri (Örn: "Small", "#FF0000", "128 GB")
+// Varyasyonun Değeri (Örn: "Small", "#FF0000")
 model AttributeValue {
   id          String    @id @default(uuid())
   attributeId String
   attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-  name        String    // Görünen isim (Örn: "Kırmızı", "XL")
-  value       String    // Değer (Renkse HEX kodu "#fff", değilse isimle aynı olabilir)
-  products    Product[] // Hangi ürünlerde bu seçenek var
+  
+  name        String    
+  value       String    
+  
+  products    Product[] // Bu değere sahip ürünler
+  
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -74,14 +89,16 @@ model AttributeValue {
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String      @id @default(uuid())
   storeId   String
-  store     Store     @relation(fields: [storeId], references: [id])
+  store     Store       @relation("StoreToCategory", fields: [storeId], references: [id], onDelete: Cascade)
+  
   name      String
   products  Product[]
   attributes Attribute[] @relation("CategoryToAttribute")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([storeId])
 }
@@ -89,11 +106,14 @@ model Category {
 model Order {
   id        String      @id @default(uuid())
   storeId   String
-  store     Store       @relation(fields: [storeId], references: [id])
-  orderItems OrderItem[]
+  store     Store       @relation("StoreToOrder", fields: [storeId], references: [id], onDelete: Cascade)
+  
+  orderItems OrderItem[] // Sipariş silinirse kalemler de silinir (OrderItem içinde tanımlı)
+  
   isPaid    Boolean     @default(false)
   phone     String      @default("")
   address   String      @default("")
+  
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -103,12 +123,15 @@ model Order {
 model OrderItem {
   id        String  @id @default(uuid())
   orderId   String
-  order     Order   @relation(fields: [orderId], references: [id])
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
   productId String
-  product   Product @relation(fields: [productId], references: [id])
-  selectedOptions String? @default("")
+  product   Product @relation(fields: [productId], references: [id]) // Ürün silinirse sipariş kaydı bozulmasın diye Cascade yok (veya SetNull)
+  
+  selectedOptions String? @default("") // Sipariş anındaki varyasyon seçimi (Örn: "Renk: Kırmızı")
   price     Decimal
-  quantity Int @default(1)
+  quantity  Int     @default(1)
+
   @@index([orderId])
   @@index([productId])
 }
@@ -117,7 +140,8 @@ model Image {
   id          String   @id @default(uuid())
   productId   String
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url         String   // Resmin Cloudinary linki
+  url         String   
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -127,11 +151,23 @@ model Image {
 model SocialLink {
   id        String   @id @default(uuid())
   storeId   String
-  store     Store    @relation(fields: [storeId], references: [id])
-  platform  String   // Örn: "instagram", "twitter", "youtube"
-  url       String   // Örn: "https://instagram.com/magazam"
+  store     Store    @relation("StoreToSocialLink", fields: [storeId], references: [id], onDelete: Cascade)
+  
+  platform  String   
+  url       String   
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([storeId])
+}
+
+model User {
+  id        String   @id // Buraya Clerk ID'si (user_2N...) gelecek
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

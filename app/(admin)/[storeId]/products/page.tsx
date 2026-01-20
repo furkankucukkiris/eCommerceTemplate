@@ -1,52 +1,45 @@
+// app/(admin)/[storeId]/products/page.tsx
+
 import { format } from "date-fns";
-import { db } from "@/lib/db";
+import { tr } from "date-fns/locale"; 
+import prismadb from "@/lib/prismadb";
+import { formatter } from "@/lib/utils";
+
 import { ProductClient } from "./components/client";
 import { ProductColumn } from "./components/columns";
 
-// Fiyatı TL formatına çevirmek için yardımcı
-const formatter = new Intl.NumberFormat("tr-TR", {
-  style: "currency",
-  currency: "TRY",
-});
+const ProductsPage = async ({
+  params
+}: {
+  params: Promise<{ storeId: string }>
+}) => {
+  const { storeId } = await params;
 
-interface ProductsPageProps {
-  params: Promise<{
-    storeId: string;
-  }>;
-}
-
-export default async function ProductsPage(props: ProductsPageProps) {
-  // Next.js 15+ için params'ı await ile karşılıyoruz
-  const params = await props.params;
-
-  // Ürünleri veritabanından çekiyoruz
-  const products = await db.product.findMany({
+  // 1. Ürünleri çekerken görselleri de (images) dahil ediyoruz
+  const products = await prismadb.product.findMany({
     where: {
-      storeId: params.storeId
+      storeId: storeId
     },
     include: {
-      category: true, // Kategori ismini göstermek için
-      images: true,   // YENİ: Resimleri çekiyoruz (thumbnail için şart)
+      category: true,
+      images: true, // <-- EKLENDİ: Resimleri çek
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
 
-  // Veriyi tablo yapısına (ProductColumn) uygun hale getiriyoruz
   const formattedProducts: ProductColumn[] = products.map((item) => ({
     id: item.id,
     name: item.name,
     isFeatured: item.isFeatured,
     isArchived: item.isArchived,
-    // Fiyatı sayıdan (Decimal) formatlı yazıya (String) çeviriyoruz
     price: formatter.format(item.price.toNumber()), 
-    // Kategori varsa adını, yoksa boş string
-    category: item.category?.name || "",
-    // Tarih formatı
-    createdAt: format(item.createdAt, "dd MMMM yyyy"),
-    // YENİ: İlk görseli alıyoruz, yoksa boş string dönüyoruz
-    image: item.images?.[0]?.url || "",
+    stock: item.stock,
+    category: item.category?.name || "Kategorisiz",
+    // EKLENDİ: İlk görseli al, yoksa boş string gönder
+    image: item.images[0]?.url || "", 
+    createdAt: format(item.createdAt, "d MMMM yyyy", { locale: tr }),
   }));
 
   return (
@@ -56,4 +49,6 @@ export default async function ProductsPage(props: ProductsPageProps) {
       </div>
     </div>
   );
-}
+};
+
+export default ProductsPage;
