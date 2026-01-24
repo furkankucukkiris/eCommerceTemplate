@@ -14,156 +14,185 @@ model Store {
   name            String
   userId          String
   logoUrl         String?      @default("")
-  
-  // İlişkiler: Mağaza silinirse altındaki her şey silinsin (Cascade)
+   
   products        Product[]    @relation("StoreToProduct")
   orders          Order[]      @relation("StoreToOrder")
   categories      Category[]   @relation("StoreToCategory")
   attributes      Attribute[]  @relation("StoreToAttribute")
   socialLinks     SocialLink[] @relation("StoreToSocialLink")
-  
+   
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  storeId     String
-  store       Store       @relation("StoreToProduct", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  categoryId  String?
-  category    Category?   @relation(fields: [categoryId], references: [id]) // Kategori silinirse ürün kalır, ilişki kopar
-  
-  name        String
-  price       Decimal
-  isFeatured  Boolean     @default(false)
-  isArchived  Boolean     @default(false)
-  
-  // Stok Yönetimi: Basit stok takibi için integer alan.
-  stock       Int         @default(0)
-  
-  attributes  AttributeValue[] // Ürünün varyasyon değerleri (Örn: Kırmızı, Large)
-  images      Image[]          // Resimler (Cascade delete Image modelinde tanımlı)
-  orderItems  OrderItem[]      // Sipariş kalemleri
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(uuid())
+  storeId      String
+  store        Store       @relation("StoreToProduct", fields: [storeId], references: [id], onDelete: Cascade)
+   
+  categoryId   String?
+  category     Category?   @relation(fields: [categoryId], references: [id]) 
+   
+  name         String
+  price        Decimal
+  isFeatured   Boolean     @default(false)
+  isArchived   Boolean     @default(false)
+   
+  stock        Int         @default(0)
+   
+  variants     ProductVariant[] 
+  attributes   AttributeValue[] 
+
+  images       Image[]           
+  orderItems   OrderItem[]       
+   
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([storeId])
   @@index([categoryId])
 }
 
-// Varyasyonun Tipi (Örn: "Beden", "Renk")
+model ProductVariant {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  name            String   
+  sku             String?  
+  price           Decimal  
+  stock           Int      @default(0) 
+  
+  selectedOptions AttributeValue[] 
+  images          Image[]  
+  orderItems      OrderItem[] 
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+}
+
 model Attribute {
-  id          String    @id @default(uuid())
-  storeId     String    
-  store       Store     @relation("StoreToAttribute", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  name        String    
-  valueType   String    // "TEXT" veya "COLOR"
-  
-  values      AttributeValue[] 
-  categories  Category[] @relation("CategoryToAttribute") // Bu nitelik hangi kategorilerde geçerli
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String      @id @default(uuid())
+  storeId      String    
+  store        Store       @relation("StoreToAttribute", fields: [storeId], references: [id], onDelete: Cascade)
+   
+  name         String      
+  valueType    String      
+   
+  values       AttributeValue[] 
+  categories   Category[]  @relation("CategoryToAttribute") 
+   
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([storeId])
 }
 
-// Varyasyonun Değeri (Örn: "Small", "#FF0000")
 model AttributeValue {
-  id          String    @id @default(uuid())
-  attributeId String
-  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-  
-  name        String    
-  value       String    
-  
-  products    Product[] // Bu değere sahip ürünler
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  attributeId     String
+  attribute       Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+   
+  name            String    
+  value           String    
+   
+  products        Product[] 
+  productVariants ProductVariant[] 
+   
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([attributeId])
 }
 
 model Category {
-  id        String      @id @default(uuid())
-  storeId   String
-  store     Store       @relation("StoreToCategory", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  name      String
-  products  Product[]
-  attributes Attribute[] @relation("CategoryToAttribute")
-  
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  storeId     String
+  store       Store       @relation("StoreToCategory", fields: [storeId], references: [id], onDelete: Cascade)
+   
+  name        String
+  products    Product[]
+  attributes  Attribute[] @relation("CategoryToAttribute")
+   
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([storeId])
 }
 
 model Order {
-  id        String      @id @default(uuid())
-  storeId   String
-  store     Store       @relation("StoreToOrder", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  orderItems OrderItem[] // Sipariş silinirse kalemler de silinir (OrderItem içinde tanımlı)
-  
-  isPaid    Boolean     @default(false)
-  phone     String      @default("")
-  address   String      @default("")
-  
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  storeId     String
+  store       Store       @relation("StoreToOrder", fields: [storeId], references: [id], onDelete: Cascade)
+   
+  orderItems  OrderItem[] 
+   
+  isPaid      Boolean     @default(false)
+  phone       String      @default("")
+  address     String      @default("")
+   
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([storeId])
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  productId String
-  product   Product @relation(fields: [productId], references: [id]) // Ürün silinirse sipariş kaydı bozulmasın diye Cascade yok (veya SetNull)
-  
-  selectedOptions String? @default("") // Sipariş anındaki varyasyon seçimi (Örn: "Renk: Kırmızı")
-  price     Decimal
-  quantity  Int     @default(1)
+  id               String  @id @default(uuid())
+  orderId          String
+  order            Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+   
+  productId        String
+  product          Product @relation(fields: [productId], references: [id])
+   
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+
+  selectedOptions  String? @default("") 
+  price            Decimal
+  quantity         Int     @default(1)
 
   @@index([orderId])
   @@index([productId])
+  @@index([productVariantId])
 }
 
 model Image {
-  id          String   @id @default(uuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url         String   
+  id               String   @id @default(uuid())
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  productId        String?
+  product          Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  url              String   
+   
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([productId])
+  @@index([productVariantId])
 }
 
 model SocialLink {
-  id        String   @id @default(uuid())
-  storeId   String
-  store     Store    @relation("StoreToSocialLink", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  platform  String   
-  url       String   
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  storeId     String
+  store       Store    @relation("StoreToSocialLink", fields: [storeId], references: [id], onDelete: Cascade)
+   
+  platform    String   
+  url         String   
+   
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([storeId])
 }
 
 model User {
-  id        String   @id // Buraya Clerk ID'si (user_2N...) gelecek
+  id        String   @id 
   email     String   @unique
   firstName String?
   lastName  String?

@@ -1,10 +1,10 @@
 "use client";
 
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash } from "lucide-react";
+import { Plus, Trash } from "lucide-react";
 import { Category, Image, Product, Attribute, AttributeValue } from "@prisma/client";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,13 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ImageUpload from "@/components/image-upload";
+import { CreatableSelect } from "@/components/ui/creatable-select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createProduct, updateProduct, deleteProduct } from "@/actions/products";
-import { AlertModal } from "@/components/modals/alert-modal"
+import ImageUpload from "@/components/image-upload";
+import { AlertModal } from "@/components/modals/alert-modal";
 
-// Kategori ve içindeki özellikleri (values ile birlikte) taşıyan tip
+import { createProduct, updateProduct, deleteProduct } from "@/actions/products";
+import { createQuickCategory, createQuickAttribute, createQuickValue } from "@/actions/quick-create";
+
+// TİP TANIMLAMALARI
 export type CategoryWithAttributes = Category & {
   attributes: (Attribute & { values: AttributeValue[] })[];
 };
@@ -29,11 +31,11 @@ const formSchema = z.object({
   name: z.string().min(1, "Ürün adı gereklidir"),
   images: z.object({ url: z.string() }).array(),
   price: z.coerce.number().min(1, "Fiyat 1'den küçük olamaz"),
-  stock: z.coerce.number().min(0, "Stok negatif olamaz"), // YENİ: Stok Alanı
+  stock: z.coerce.number().min(0, "Stok negatif olamaz"),
   categoryId: z.string().min(1, "Kategori seçiniz"),
   isFeatured: z.boolean().default(false).optional(),
   isArchived: z.boolean().default(false).optional(),
-  attributes: z.array(z.string()).optional(), // Seçilen AttributeValue ID'leri
+  attributes: z.array(z.string()).optional(),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -56,6 +58,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // DİNAMİK ÖZELLİK YÖNETİMİ İÇİN STATE
+  // Formdaki "O anki" kategoriye ait özellikleri burada tutacağız.
+  const [currentAttributes, setCurrentAttributes] = useState<(Attribute & { values: AttributeValue[] })[]>([]);
+
   const title = initialData ? "Ürün Düzenle" : "Ürün Oluştur";
   const description = initialData ? "Ürün bilgilerini düzenle" : "Yeni bir ürün ekle";
   const action = initialData ? "Kaydet" : "Oluştur";
@@ -65,14 +71,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     defaultValues: initialData ? {
       ...initialData,
       price: parseFloat(String(initialData?.price)),
-      stock: initialData.stock, // YENİ: Stok verisi
+      stock: initialData.stock,
       categoryId: initialData.categoryId || '', 
       attributes: initialData.attributes.map((a) => a.id),
     } : {
       name: '',
       images: [],
       price: 0,
-      stock: 10, // Varsayılan stok
+      stock: 10,
       categoryId: '',
       isFeatured: false,
       isArchived: false,
@@ -80,28 +86,120 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   });
 
-  // Seçilen kategoriyi izle
+  // Kategori değiştiğinde özellikleri güncelle
   const selectedCategoryId = form.watch("categoryId");
-  // O kategoriye ait özellikleri bul
-  const activeCategory = categories.find((cat) => cat.id === selectedCategoryId);
-  const availableAttributes = activeCategory ? activeCategory.attributes : [];
+
+  useEffect(() => {
+    // 1. Seçilen kategoriyi props'lardan bul
+    const category = categories.find(c => c.id === selectedCategoryId);
+    
+    // 2. Eğer bulunduysa, onun özelliklerini state'e at (Başlangıç durumu)
+    // Not: Sadece ilk yüklemede veya kategori değişiminde çalışır.
+    // Eğer kullanıcı yeni özellik eklerse state'i manuel güncelleyeceğiz.
+    if (category) {
+       // Mevcut state ile çakışmaması için basit bir kontrol yapılabilir ama
+       // şimdilik her kategori değişiminde sıfırlayıp o kategorininkileri yüklüyoruz.
+       // (Eğer yeni eklenen özellik props'ta yoksa kaybolabilir, bu yüzden aşağıda ekleme mantığına dikkat edeceğiz)
+       const existingIds = currentAttributes.map(a => a.id);
+       // Sadece state boşsa veya kategori gerçekten değiştiyse güncelle
+       // (Bu kısım biraz basitleştirilmiştir, idealde daha kompleks bir merge gerekebilir)
+       if (currentAttributes.length === 0 || !category.attributes.every(a => existingIds.includes(a.id))) {
+           setCurrentAttributes(category.attributes);
+       }
+    } else {
+        setCurrentAttributes([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryId, categories]); // currentAttributes bağımlılığını kaldırdık sonsuz döngü olmasın diye
+
+  // --- HIZLI OLUŞTURMA FONKSİYONLARI ---
+
+  // 1. Yeni Kategori Ekleme
+  const onCategoryCreate = async (name: string) => {
+    try {
+        setLoading(true);
+        const newCategory = await createQuickCategory(params.storeId as string, name);
+        toast.success("Kategori oluşturuldu.");
+        router.refresh(); 
+        form.setValue("categoryId", newCategory.id);
+        form.setValue("attributes", []); 
+        setCurrentAttributes([]); // Yeni kategori boş başlar
+    } catch (error) {
+        toast.error("Hata oluştu.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // 2. Yeni Özellik (Attribute) Ekleme (Örn: Kumaş)
+  const onAttributeCreate = async () => {
+     // Kullanıcıya bir isim girmesi için prompt açalım (Veya daha şık bir modal yapılabilir)
+     // Şimdilik basit prompt kullanıyoruz.
+     const name = window.prompt("Yeni özellik adı girin (Örn: Materyal):");
+     if (!name) return;
+
+     if (!selectedCategoryId) {
+         toast.error("Önce bir kategori seçmelisiniz.");
+         return;
+     }
+
+     try {
+         setLoading(true);
+         // Backend'de oluştur ve kategoriye bağla
+         const newAttribute = await createQuickAttribute(params.storeId as string, selectedCategoryId, name);
+         
+         // State'i güncelle (Ekrana hemen yansıması için)
+         setCurrentAttributes((prev) => [...prev, { ...newAttribute, values: [] }]);
+         
+         toast.success(`${name} özelliği eklendi.`);
+         router.refresh();
+     } catch (error) {
+         toast.error("Özellik eklenirken hata oluştu.");
+     } finally {
+         setLoading(false);
+     }
+  };
+
+  // 3. Yeni Değer (Value) Ekleme (Örn: İpek)
+  const onValueCreate = async (attributeId: string, name: string) => {
+      try {
+          setLoading(true);
+          const newValue = await createQuickValue(attributeId, name);
+          
+          // State'i güncelle: İlgili attribute'u bul ve value listesine ekle
+          setCurrentAttributes((prev) => prev.map((attr) => {
+              if (attr.id === attributeId) {
+                  return { ...attr, values: [...attr.values, newValue] };
+              }
+              return attr;
+          }));
+
+          // Yeni oluşturulan değeri formda seçili yap
+          const currentSelection = form.getValues("attributes") || [];
+          form.setValue("attributes", [...currentSelection, newValue.id]);
+
+          toast.success("Değer eklendi.");
+          router.refresh();
+      } catch (error) {
+          toast.error("Değer eklenirken hata oluştu.");
+      } finally {
+          setLoading(false);
+      }
+  };
 
   const onSubmit = async (data: ProductFormValues) => {
     try {
       setLoading(true);
       const productData = { ...data, storeId: params.storeId as string };
-
       if (initialData) {
         await updateProduct(params.storeId as string, params.productId as string, productData);
       } else {
         await createProduct(productData);
       }
-      
       router.push(`/${params.storeId}/products`);
       router.refresh();
       toast.success(action + " başarıyla tamamlandı.");
     } catch (error) {
-      console.error(error);
       toast.error("Bir hata oluştu.");
     } finally {
       setLoading(false);
@@ -144,7 +242,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full mt-4">
           
-          {/* Görsel Yükleme */}
+          {/* Görsel */}
           <FormField
             control={form.control}
             name="images"
@@ -164,7 +262,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             )}
           />
 
-          {/* Temel Bilgiler Grid */}
+          {/* Temel Bilgiler */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <FormField
               control={form.control}
@@ -192,7 +290,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </FormItem>
               )}
             />
-            {/* YENİ: Stok Alanı */}
             <FormField
               control={form.control}
               name="stock"
@@ -206,35 +303,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </FormItem>
               )}
             />
+
+            {/* Kategori Seçimi (Creatable) */}
             <FormField
               control={form.control}
               name="categoryId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Kategori</FormLabel>
-                  <Select 
-                    disabled={loading} 
-                    onValueChange={(value) => {
-                        field.onChange(value);
-                        // Kategori değişirse seçili özellikleri temizle (opsiyonel)
-                        form.setValue("attributes", []); 
-                    }} 
-                    value={field.value} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Kategori seçin" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CreatableSelect 
+                    options={categories.map(c => ({ label: c.name, value: c.id }))}
+                    value={field.value}
+                    onChange={(value) => {
+                         field.onChange(value);
+                         form.setValue("attributes", []); 
+                         // Kategori değişince state'i sıfırla, useEffect zaten yenisini yükleyecek
+                         setCurrentAttributes([]);
+                    }}
+                    onCreate={onCategoryCreate}
+                    placeholder="Kategori seçin veya oluşturun..."
+                    label="Kategori"
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -243,58 +332,84 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
           <Separator />
           
-          {/* DİNAMİK ÖZELLİK (ATTRIBUTE) SEÇİMİ */}
+          {/* --- GELİŞMİŞ ÖZELLİK (VARYASYON) YÖNETİMİ --- */}
           <div className="space-y-4">
-             <h3 className="text-lg font-medium">Ürün Özellikleri</h3>
-             <p className="text-sm text-muted-foreground">
-                {!selectedCategoryId 
-                  ? "Özellikleri görmek için lütfen yukarıdan bir kategori seçin."
-                  : availableAttributes.length === 0 
-                    ? "Bu kategori için tanımlanmış özellik bulunamadı. (Ayarlar > Özellikler kısmından ekleyebilirsiniz)" 
-                    : "Bu ürün için geçerli özellikleri seçiniz."}
-             </p>
-
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {availableAttributes.map((attribute) => (
-                    <FormItem key={attribute.id} className="p-4 border rounded-md bg-slate-50">
-                        <FormLabel className="font-semibold">{attribute.name}</FormLabel>
-                        <Select
-                            disabled={loading}
-                            // Seçili değeri bulmak için attributes dizisini tara
-                            value={attribute.values.find(v => (form.watch("attributes") || []).includes(v.id))?.id}
-                            onValueChange={(selectedValueId) => {
-                                const current = form.getValues("attributes") || [];
-                                // Bu niteliğe (örn: Renk) ait diğer değerleri listeden çıkar (Temizle)
-                                const otherValuesIds = attribute.values.map(v => v.id);
-                                const cleaned = current.filter(id => !otherValuesIds.includes(id));
-                                // Yeni seçimi ekle
-                                form.setValue("attributes", [...cleaned, selectedValueId]);
-                            }}
-                        >
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seçiniz" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {attribute.values.map((val) => (
-                                    <SelectItem key={val.id} value={val.id}>
-                                        {val.name}
-                                        {attribute.valueType === "COLOR" && (
-                                            <div className="inline-block w-4 h-4 ml-2 rounded-full border" style={{backgroundColor: val.value}} />
-                                        )}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </FormItem>
-                ))}
+             <div className="flex items-center justify-between">
+                 <div>
+                    <h3 className="text-lg font-medium">Ürün Özellikleri</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Bu ürünün varyasyonlarını (Renk, Beden vb.) buradan yönetebilirsiniz.
+                    </p>
+                 </div>
+                 {/* YENİ ÖZELLİK EKLEME BUTONU */}
+                 {selectedCategoryId && (
+                     <Button type="button" onClick={onAttributeCreate} variant="outline" size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Yeni Özellik Ekle
+                     </Button>
+                 )}
              </div>
+
+             {!selectedCategoryId ? (
+                 <div className="p-4 bg-slate-100 rounded text-sm text-center">
+                    Özellik eklemek için lütfen önce kategori seçiniz.
+                 </div>
+             ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* MEVCUT ÖZELLİKLERİ LİSTELE */}
+                    {currentAttributes.map((attribute) => (
+                        <FormItem key={attribute.id} className="p-4 border rounded-md bg-white shadow-sm">
+                            <FormLabel className="font-semibold flex items-center justify-between">
+                                {attribute.name}
+                            </FormLabel>
+                            
+                            {/* DEĞER SEÇİMİ (CreatableSelect) */}
+                            {/* Burada Multi-Select mantığı için biraz hile yapıyoruz:
+                                Şu an tekli seçim var gibi görünüyor ama altyapı çoklu seçime uygun.
+                                Kullanıcı yeni değer oluşturdukça listeye eklenir.
+                            */}
+                            <CreatableSelect 
+                                options={attribute.values.map(v => ({ label: v.name, value: v.id }))}
+                                value={attribute.values.find(v => (form.watch("attributes") || []).includes(v.id))?.id}
+                                onChange={(selectedValueId) => {
+                                    // Çoklu seçim (Multi-Select) mantığı:
+                                    const current = form.getValues("attributes") || [];
+                                    
+                                    // 1. Bu özelliğe ait daha önce seçilmiş değerleri temizle (Tek seçim istiyorsak)
+                                    // Eğer "Renk" için hem Kırmızı hem Mavi seçilsin istiyorsan burayı değiştirmeliyiz.
+                                    // Şimdilik standart "Dropdown" mantığıyla tek seçim yapıyoruz.
+                                    const otherValuesIds = attribute.values.map(v => v.id);
+                                    const cleaned = current.filter(id => !otherValuesIds.includes(id));
+                                    
+                                    // 2. Yeni seçimi ekle
+                                    // Eğer boş string geldiyse (seçimi kaldır) ekleme yapma
+                                    if(selectedValueId) {
+                                        form.setValue("attributes", [...cleaned, selectedValueId]);
+                                    } else {
+                                        form.setValue("attributes", [...cleaned]);
+                                    }
+                                }}
+                                onCreate={(name) => onValueCreate(attribute.id, name)}
+                                placeholder={`${attribute.name} seçin veya ekleyin...`}
+                                label={attribute.name}
+                            />
+                        </FormItem>
+                    ))}
+
+                    {currentAttributes.length === 0 && (
+                        <div className="col-span-full text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
+                            Bu kategoride henüz tanımlı özellik yok. 
+                            <br />
+                            Yukarıdaki <b>"Yeni Özellik Ekle"</b> butonunu kullanarak hemen oluşturabilirsiniz.
+                        </div>
+                    )}
+                </div>
+             )}
           </div>
           
           <Separator />
 
-          {/* Checkbox Alanları */}
+          {/* Checkboxlar */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FormField
               control={form.control}

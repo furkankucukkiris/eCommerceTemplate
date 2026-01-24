@@ -1,4 +1,4 @@
-// types.ts dosyasının TAMAMI şöyle olmalı (Eksikleri ekleyin):
+// types.ts
 
 export interface Image {
   id: string;
@@ -10,7 +10,6 @@ export interface Category {
   name: string;
 }
 
-// YENİ EKLENECEK KISIMLAR:
 export interface Attribute {
   id: string;
   name: string;
@@ -22,17 +21,23 @@ export interface AttributeValue {
   name: string;
   value: string;
   attributeId: string;
-  attribute: Attribute;
+  attribute?: Attribute;
+  // Prisma uyumluluğu için tarih alanlarını ekliyoruz
+  createdAt?: Date; 
+  updatedAt?: Date;
 }
-// -----------------------
 
 export interface Product {
   id: string;
-  category: Category;
+  category: Category | null;
   name: string;
   price: string | number;
   isFeatured: boolean;
+  isArchived?: boolean; // Admin tarafında kullanılabiliyor
   images: Image[];
-  // YENİ: Ürüne varyasyonları ekliyoruz
   attributes?: AttributeValue[]; 
+  description?: string;
+  stock?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }

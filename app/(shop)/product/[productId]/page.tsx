@@ -18,6 +18,11 @@ export default async function ProductPage(props: ProductPageProps) {
     include: {
       category: true,
       images: true,
+      attributes: {
+        include: {
+          attribute: true // Özelliğin adını (Örn: "Renk") alabilmek için
+        }
+      }
     },
   });
 

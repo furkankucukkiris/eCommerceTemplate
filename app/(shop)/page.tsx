@@ -4,6 +4,8 @@ import { Container } from "@/components/ui/container";
 import { StoreHero } from "@/components/store-hero"; 
 import { FeaturesBento } from "@/components/features-bento";
 
+export const revalidate = 0;
+
 async function getProducts() {
   const products = await db.product.findMany({
     where: { isFeatured: true, isArchived: false },
