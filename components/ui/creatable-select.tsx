@@ -44,7 +44,7 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
   const [inputValue, setInputValue] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  // Seçili öğenin etiketini bul
+  // Seçili öğeyi bul
   const selectedOption = options.find((option) => option.value === value);
 
   const handleCreate = async () => {
@@ -74,7 +74,7 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-[250px] p-0" align="start">
         <Command>
           <CommandInput 
             placeholder={`${label} ara...`} 
@@ -82,12 +82,12 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
           />
           <CommandList>
             <CommandEmpty className="p-1">
-               {inputValue.length > 0 && (
+               {/* Sadece arama yapılmışsa ve sonuç yoksa oluştur butonu göster */}
+               {inputValue.length > 0 && !loading && (
                  <Button 
                     variant="ghost" 
                     className="w-full justify-start text-sm h-auto py-2"
                     onClick={handleCreate}
-                    disabled={loading}
                  >
                     <Plus className="mr-2 h-4 w-4" />
                     "{inputValue}" oluştur
@@ -97,13 +97,15 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
-                  key={option.value} // Key benzersiz ID olmalı
-                  value={option.label} // Arama için label kullanıyoruz
+                  key={option.value}
+                  // DÜZELTME: value prop'unu kaldırdık veya option.label yaptık.
+                  // En garantisi, value prop'u option.label ile aynı olsun ki filtreleme çalışsın.
+                  value={option.label}
                   onSelect={() => {
-                    // ID'yi dışarı aktarıyoruz
-                    onChange(option.value); 
+                    onChange(option.value); // ID'yi state'e gönder
                     setOpen(false);
                   }}
+                  className="cursor-pointer" // Tıklanabilir olduğunu göstermek için
                 >
                   <Check
                     className={cn(
